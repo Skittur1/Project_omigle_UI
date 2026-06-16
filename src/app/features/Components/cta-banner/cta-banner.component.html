@@ -1,0 +1,88 @@
+<section class="relative py-20 overflow-hidden">
+
+  <!-- Background -->
+  <div class="absolute inset-0">
+    <img
+      src="https://images.pexels.com/photos/3184398/pexels-photo-3184398.jpeg?auto=compress&cs=tinysrgb&w=1400"
+      alt="People connecting"
+      class="w-full h-full object-cover"
+    />
+    <div class="absolute inset-0 bg-[#0a0b1a]/80"></div>
+  </div>
+
+  <!-- Content -->
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="flex flex-col lg:flex-row items-center justify-between gap-8">
+
+      <!-- Left -->
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-pink-400 text-xl">♥</span>
+          <span class="text-gray-300 text-sm font-medium uppercase tracking-widest">
+            Join us
+          </span>
+        </div>
+
+        <h2 class="text-3xl lg:text-4xl font-bold text-white mb-3">
+          Ready To Meet Someone New?
+        </h2>
+
+        <p class="text-gray-300 max-w-md">
+          Join thousands of people who are already connecting and making new
+          friends around the world.
+        </p>
+      </div>
+
+      <!-- Right -->
+      <div class="flex flex-col items-center gap-4">
+
+        <button
+          class="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-violet-600 to-blue-600 text-white font-bold rounded-xl hover:from-violet-500 hover:to-blue-500 transition-all duration-200 shadow-lg shadow-violet-500/30 text-lg whitespace-nowrap">
+
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor">
+
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 13l4 4L19 7">
+            </path>
+
+          </svg>
+
+          Start Chatting Now
+        </button>
+
+        <div class="flex items-center gap-2">
+
+          <div class="flex -space-x-2">
+
+            @for (u of data.ctaAvatars; track u.alt) {
+              <img
+                [src]="u.src"
+                [alt]="u.alt"
+                class="w-7 h-7 rounded-full border-2 border-[#0d0e1f] object-cover"
+              />
+            }
+
+          </div>
+
+          <span class="text-gray-300 text-sm">
+            Join 52,341+ users online now
+          </span>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>

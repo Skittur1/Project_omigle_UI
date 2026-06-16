@@ -1,0 +1,190 @@
+
+<div class="video-chat-container min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
+  <!-- Connection Status Bar -->
+  <div class="status-bar bg-gray-800/50 backdrop-blur-md border-b border-gray-700">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full" 
+               [class.bg-green-500]="connectionStatus"
+               [class.bg-red-500]="!connectionStatus"
+               [class.animate-pulse]="connectionStatus">
+          </div>
+          <span class="text-sm text-gray-300">
+            {{ connectionStatus ? 'Connected' : 'Disconnected' }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+          </svg>
+          <span class="text-sm text-gray-300">{{ onlineUsers }} online</span>
+        </div>
+      </div>
+      <div class="text-sm text-gray-400">
+        <span class="font-semibold text-white">{{ userName || 'Guest' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Join Screen -->
+    @if (!isInCall && !isConnecting) {
+      <div class="join-screen flex flex-col items-center justify-center min-h-[80vh]">
+        <div class="card bg-gray-800/50 backdrop-blur-md rounded-2xl p-8 max-w-md w-full border border-gray-700">
+          <h2 class="text-3xl font-bold text-white text-center mb-6">
+            Start Your Journey
+          </h2>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-2">
+                Enter your name
+              </label>
+              <input 
+                type="text"
+                [(ngModel)]="userName"
+                placeholder="Your name..."
+                class="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition"
+                (keyup.enter)="startVideoChat()">
+            </div>
+            
+            @if (errorMessage) {
+              <div class="bg-red-500/10 border border-red-500/50 rounded-lg p-3">
+                <p class="text-red-400 text-sm">{{ errorMessage }}</p>
+              </div>
+            }
+            
+            <div class="flex flex-col gap-3">
+                
+              <button 
+                (click)="startVideoChat()"
+                class="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:from-purple-500 hover:to-blue-500 transition-all duration-200 shadow-lg shadow-purple-500/25">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                </svg>
+                Start Video Chat
+              </button>
+              
+              <button 
+              
+               
+                class="flex items-center justify-center gap-2 px-6 py-3 bg-gray-700/50 border border-gray-600 text-white font-semibold rounded-xl hover:bg-gray-600/50 transition-all duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Start Text Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Connecting Screen -->
+    @if (isConnecting && !isInCall) {
+      <div class="connecting-screen flex flex-col items-center justify-center min-h-[80vh]">
+        <div class="text-center">
+          <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mb-4"></div>
+          <h3 class="text-xl text-white mb-2">Finding a partner...</h3>
+          <p class="text-gray-400">Please wait while we connect you with someone</p>
+        </div>
+      </div>
+    }
+
+    <!-- Video Call Screen -->
+    @if (isInCall) {
+      <div class="video-call-screen">
+        <!-- Video Grid -->
+        <div class="video-grid grid lg:grid-cols-2 gap-4 mb-4">
+          <!-- Local Video -->
+          <div class="relative bg-gray-900 rounded-2xl overflow-hidden aspect-video">
+            <video #localVideo autoplay muted playsinline class="w-full h-full object-cover"></video>
+            <div class="absolute bottom-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-1">
+              <span class="text-white text-sm">You</span>
+            </div>
+            <div class="absolute top-4 right-4 flex gap-2">
+              @if (!isVideoEnabled) {
+                <div class="bg-red-500/80 backdrop-blur-sm rounded-lg px-2 py-1">
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+              }
+              @if (!isAudioEnabled) {
+                <div class="bg-red-500/80 backdrop-blur-sm rounded-lg px-2 py-1">
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                  </svg>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Remote Video -->
+          <div class="relative bg-gray-900 rounded-2xl overflow-hidden aspect-video">
+            <video #remoteVideo autoplay playsinline class="w-full h-full object-cover"></video>
+            <div class="absolute bottom-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-1">
+              <span class="text-white text-sm">Partner</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Control Bar -->
+        <div class="controls flex justify-center gap-4">
+          <button 
+            (click)="toggleVideo()"
+            class="control-btn p-4 rounded-full transition-all duration-200"
+            [class.bg-gray-700]="isVideoEnabled"
+            [class.bg-red-500]="!isVideoEnabled">
+            @if (isVideoEnabled) {
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+              </svg>
+            } @else {
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                <line x1="3" y1="3" x2="21" y2="21"/>
+              </svg>
+            }
+          </button>
+
+          <button 
+            (click)="toggleAudio()"
+            class="control-btn p-4 rounded-full transition-all duration-200"
+            [class.bg-gray-700]="isAudioEnabled"
+            [class.bg-red-500]="!isAudioEnabled">
+            @if (isAudioEnabled) {
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+              </svg>
+            } @else {
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                <line x1="3" y1="3" x2="21" y2="21"/>
+              </svg>
+            }
+          </button>
+
+          <button 
+            (click)="skipPartner()"
+            class="control-btn p-4 rounded-full bg-yellow-600 hover:bg-yellow-700 transition-all duration-200">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+          </button>
+
+          <button 
+            (click)="endCall()"
+            class="control-btn p-4 rounded-full bg-red-600 hover:bg-red-700 transition-all duration-200">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 18l6-6-6-6M8 6l-6 6 6 6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

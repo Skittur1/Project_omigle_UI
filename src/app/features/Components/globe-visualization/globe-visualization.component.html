@@ -1,0 +1,97 @@
+<div class="relative w-full aspect-square max-w-lg mx-auto">
+
+  <!-- Animated Globe -->
+ <img
+  src="assets/images/Globe2.png"
+  alt="Globe"
+  class="w-full h-full object-contain"
+/>
+
+  <!-- Floating Users -->
+  @for (user of data.floatingUsers; track user.name) {
+
+    <div
+      class="absolute flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-3 py-2 text-white shadow-lg"
+      [style.top]="user.top || null"
+      [style.left]="user.left || null"
+      [style.right]="user.right || null"
+      [style.bottom]="user.bottom || null">
+
+      <img
+        [src]="user.avatar"
+        [alt]="user.name"
+        class="w-7 h-7 rounded-full object-cover"
+      />
+
+      <div class="flex flex-col leading-none">
+        <span class="text-xs font-semibold">
+          {{ user.name }}
+        </span>
+
+        <span class="text-xs text-gray-300">
+          {{ user.flag }} {{ user.country }}
+        </span>
+      </div>
+
+      <span class="w-2 h-2 rounded-full bg-green-400 ml-1"></span>
+
+    </div>
+
+  }
+
+  <!-- Match Popup -->
+  <div
+  class="absolute bottom-[35%] left-[28%]
+         bg-[#081126]/90
+         backdrop-blur-md
+         border border-white/10
+         rounded-2xl
+         px-4 py-2
+         min-w-[260px]
+         flex items-center justify-between
+         shadow-xl">
+
+  <!-- Left -->
+  <div>
+
+    <div class="flex items-center gap-1.5">
+      <span class="text-sm">🎉</span>
+
+      <span class="text-white font-semibold text-sm">
+        New Match!
+      </span>
+    </div>
+
+    <p class="text-gray-300 text-[11px] leading-4 mt-0.5">
+      You both like Traveling &amp; Music
+    </p>
+
+  </div>
+
+  <!-- Right -->
+  <div class="relative flex items-center ml-4">
+
+    <img
+      src="https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=60&h=60&fit=crop"
+      class="w-10 h-10 rounded-full border border-pink-400 object-cover z-10"
+    />
+
+    <img
+      src="https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=60&h=60&fit=crop"
+      class="w-10 h-10 rounded-full border border-pink-400 object-cover -ml-2"
+    />
+
+    <div
+      class="absolute -bottom-1 left-1/2 -translate-x-1/2
+             w-5 h-5 rounded-full bg-pink-500
+             flex items-center justify-center">
+
+      <span class="text-white text-[10px]">♥</span>
+
+    </div>
+
+  </div>
+
+</div>
+
+</div>

@@ -1,0 +1,91 @@
+<section id="features" class="py-20 bg-[#0d0e1f]">
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="flex items-center gap-2 mb-8">
+      <span class="text-xl">⭐</span>
+      <h2 class="text-2xl font-bold text-white">
+        Premium Features
+      </h2>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+      @for (feat of data.premiumFeatures; track feat.title) {
+
+        <div
+          class="bg-[#12132a] border border-white/10 rounded-2xl p-5 flex items-start gap-4 hover:border-white/20 transition-colors duration-300">
+
+          <!-- Icon Container -->
+          <div
+            class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+            [ngClass]="feat.bg">
+
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5"
+              [ngClass]="feat.color"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2">
+
+              @switch (feat.iconName) {
+
+                @case ('video') {
+                  <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                }
+
+                @case ('message-circle') {
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                }
+
+                @case ('globe') {
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M2 12h20"></path>
+                  <path d="M12 2a15.3 15.3 0 0 1 0 20"></path>
+                }
+
+                @case ('star') {
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                }
+
+                @case ('lock') {
+                  <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                }
+
+                @case ('shield-off') {
+                  <path d="M19.69 14A6.9 6.9 0 0 0 20 12V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                }
+
+              }
+
+            </svg>
+
+          </div>
+
+          <!-- Content -->
+          <div>
+
+            <h3 class="text-white font-semibold mb-1">
+              {{ feat.title }}
+            </h3>
+
+            <p class="text-gray-400 text-sm leading-relaxed">
+              {{ feat.description }}
+            </p>
+
+          </div>
+
+        </div>
+
+      }
+
+    </div>
+
+  </div>
+
+</section>

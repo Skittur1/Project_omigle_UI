@@ -1,0 +1,66 @@
+<section class="om-section om-section--dark">
+  <div class="om-container">
+
+    <div class="om-section__heading">
+      <span>👥</span>
+      <h2>What Our Users Say</h2>
+    </div>
+
+    <div class="om-testimonials-grid">
+      @for (t of data.testimonials; track t.name) {
+
+      <div class="om-testimonial-card">
+
+        <div class="om-testimonial-card__stars">
+          @for (s of stars; track s) {
+
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            [attr.fill]="s <= t.rating ? '#facc15' : 'none'"
+            [attr.stroke]="s <= t.rating ? '#facc15' : '#4b5563'"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+
+            <polygon
+              points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+            </polygon>
+
+          </svg>
+
+          }
+        </div>
+
+        <p class="om-testimonial-card__text">
+          "{{ t.text }}"
+        </p>
+
+        <div class="om-testimonial-card__author">
+
+          <img
+            [src]="t.avatar"
+            [alt]="t.name"
+            class="om-testimonial-card__avatar">
+
+          <div>
+            <div class="om-testimonial-card__name">
+              {{ t.name }}
+            </div>
+
+            <div class="om-testimonial-card__country">
+              {{ t.flag }} {{ t.country }}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      }
+    </div>
+
+  </div>
+</section>

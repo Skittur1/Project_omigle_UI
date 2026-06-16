@@ -1,0 +1,138 @@
+<section class="hero-section relative min-h-screen flex items-center pt-16 overflow-hidden">
+
+  <!-- Background Glow -->
+  <div class="hero-bg-glow"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-16">
+
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+
+      <!-- Left Content -->
+      <div class="relative z-10">
+
+        <!-- Badge -->
+        <div
+          class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 mb-6">
+
+          <span class="text-lg">🔥</span>
+
+          <span class="text-sm text-white font-medium">
+            The New Way To Connect
+          </span>
+
+        </div>
+
+        <!-- Heading -->
+        <h1 class="text-5xl lg:text-6xl font-bold text-white leading-tight mb-4">
+
+          Meet New People
+
+          <br />
+
+          <span class="hero-gradient-text">
+            Around The World
+          </span>
+
+        </h1>
+
+        <!-- Description -->
+        <p class="text-gray-400 text-lg leading-relaxed mb-8 max-w-lg">
+
+          Random video chat and text chat with strangers from 100+ countries.
+          Make meaningful connections, one chat at a time.
+
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-8">
+
+          <button
+            class="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-blue-600 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-blue-500 transition-all duration-200 shadow-lg shadow-violet-500/25">
+
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor">
+
+              <polygon points="23 7 16 12 23 17 23 7"></polygon>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+
+            </svg>
+
+            Start Video Chat
+
+          </button>
+
+          <button
+            class="flex items-center justify-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold rounded-xl hover:bg-white/20 transition-all duration-200">
+
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor">
+
+              <path
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z">
+              </path>
+
+            </svg>
+
+            Start Text Chat
+
+          </button>
+
+        </div>
+
+        <!-- Online Users -->
+        <div class="flex items-center gap-3">
+
+          <div class="flex -space-x-2">
+
+            @for (u of data.onlineUserAvatars; track u.alt) {
+
+              <img
+                [src]="u.src"
+                [alt]="u.alt"
+                class="w-8 h-8 rounded-full border-2 border-[#0d0e1f] object-cover"
+              />
+
+            }
+
+          </div>
+
+          <div class="flex items-center gap-2">
+
+            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse">
+            </span>
+
+            <span class="text-sm text-gray-300">
+              <span class="text-white font-semibold">
+                52,341+
+              </span>
+              Users Online Now
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Right Side -->
+      <div class="relative hidden lg:block">
+
+        <app-globe-visualization />
+
+        <app-live-activity />
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>

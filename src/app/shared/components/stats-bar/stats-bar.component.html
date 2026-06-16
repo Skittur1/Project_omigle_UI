@@ -1,0 +1,77 @@
+<section class="bg-[#0d0e1f] border-y border-white/10">
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 divide-x divide-white/10">
+
+      @for (stat of data.stats; track stat.label) {
+
+        <div
+          class="flex flex-col sm:flex-row items-center gap-4 py-8 px-6">
+
+          <!-- Icon -->
+
+          <div
+            class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0"
+            [ngClass]="stat.color">
+
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2">
+
+              @switch (stat.iconName) {
+
+                @case ('users') {
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                }
+
+                @case ('message-circle') {
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                }
+
+                @case ('globe') {
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                  <path d="M2 12h20"></path>
+                }
+
+                @case ('shield') {
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                }
+
+              }
+
+            </svg>
+
+          </div>
+
+          <!-- Text -->
+
+          <div class="text-center sm:text-left">
+
+            <div class="text-2xl font-bold text-white">
+              {{ stat.value }}
+            </div>
+
+            <div class="text-sm text-gray-400">
+              {{ stat.label }}
+            </div>
+
+          </div>
+
+        </div>
+
+      }
+
+    </div>
+
+  </div>
+
+</section>

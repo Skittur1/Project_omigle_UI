@@ -1,0 +1,194 @@
+<footer class="bg-[#0d0e1f] border-t border-white/10">
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+
+      <!-- Brand -->
+      <div>
+
+        <div class="flex items-center gap-2 mb-3">
+
+          <div
+            class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
+
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor">
+
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              <path d="M2 12h20"></path>
+
+            </svg>
+
+          </div>
+
+          <span class="text-white font-bold text-lg">
+            omilge
+          </span>
+
+        </div>
+
+        <p class="text-gray-400 text-sm leading-relaxed mb-4">
+          Connecting people around the world through random video and text chat.
+        </p>
+
+        <div class="flex gap-3">
+
+          @for (social of data.footerSocialPlatforms; track social) {
+
+            <a
+              href="#"
+              class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors duration-200 text-xs font-bold">
+
+              {{ social }}
+
+            </a>
+
+          }
+
+        </div>
+
+      </div>
+
+      <!-- Quick Links -->
+      <div>
+
+        <h4 class="text-white font-semibold mb-4 text-sm">
+          Quick Links
+        </h4>
+
+        <ul class="space-y-2.5">
+
+          @for (link of data.footerQuickLinks; track link) {
+
+            <li>
+              <a
+                href="#"
+                class="text-gray-400 text-sm hover:text-white transition-colors duration-200">
+
+                {{ link }}
+
+              </a>
+            </li>
+
+          }
+
+        </ul>
+
+      </div>
+
+      <!-- Information -->
+      <div>
+
+        <h4 class="text-white font-semibold mb-4 text-sm">
+          Information
+        </h4>
+
+        <ul class="space-y-2.5">
+
+          @for (link of data.footerInfoLinks; track link) {
+
+            <li>
+              <a
+                href="#"
+                class="text-gray-400 text-sm hover:text-white transition-colors duration-200">
+
+                {{ link }}
+
+              </a>
+            </li>
+
+          }
+
+        </ul>
+
+      </div>
+
+      <!-- Support -->
+      <div>
+
+        <h4 class="text-white font-semibold mb-4 text-sm">
+          Support
+        </h4>
+
+        <ul class="space-y-2.5 mb-6">
+
+          @for (link of data.footerSupportLinks; track link) {
+
+            <li>
+              <a
+                href="#"
+                class="text-gray-400 text-sm hover:text-white transition-colors duration-200">
+
+                {{ link }}
+
+              </a>
+            </li>
+
+          }
+
+        </ul>
+
+        <h4 class="text-white font-semibold mb-3 text-sm">
+          Newsletter
+        </h4>
+
+        <p class="text-gray-400 text-xs mb-3">
+          Subscribe to get updates and tips for better connections.
+        </p>
+
+        <div class="flex gap-2">
+
+          <input
+            type="email"
+            placeholder="Enter your email"
+            class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors">
+
+          <button
+            class="w-9 h-9 bg-gradient-to-r from-violet-600 to-blue-600 rounded-lg flex items-center justify-center hover:from-violet-500 hover:to-blue-500 transition-all duration-200 flex-shrink-0">
+
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-4 h-4 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor">
+
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+
+            </svg>
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Bottom -->
+
+    <div
+      class="border-t border-white/10 mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+
+      <p class="text-gray-500 text-sm">
+        © 2026 Omilge. All rights reserved.
+      </p>
+
+      <p class="text-gray-500 text-sm flex items-center gap-1">
+        Made with
+        <span class="text-red-400">♥</span>
+        for better connections
+      </p>
+
+    </div>
+
+  </div>
+
+</footer>
