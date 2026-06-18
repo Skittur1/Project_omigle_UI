@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # ProjectOmigleUI
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.0.0.
@@ -60,4 +59,4 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
 =======
 # Project_omigle_UI
->>>>>>> 2d860076ea51ca6072b679644c1a6c9c40b7052c
+
