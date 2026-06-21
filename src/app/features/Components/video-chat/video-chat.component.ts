@@ -267,16 +267,12 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   // UI State
   isInCall = false;
   isConnecting = false;
-  isWaiting = false;
   errorMessage = '';
   userName = '';
   connectionStatus = 'Disconnected';
   RoomId = '';
   isAudioEnabled = true;
   isVideoEnabled = true;
-  
-  // Track if WebRTC is connected (independent of SignalR)
-  isWebRTCConnected = false;
 
   // WebRTC
   localSdp = '';
@@ -284,6 +280,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   localStream: MediaStream | null = null;
   peerConnection: RTCPeerConnection | null = null;
 
+  // ViewChild with timeout fallback
   @ViewChild('localVideo') localVideo!: ElementRef<HTMLVideoElement>;
   @ViewChild('remoteVideo') remoteVideo!: ElementRef<HTMLVideoElement>;
 
@@ -302,15 +299,6 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       this.connectionStatus = 'Connected';
       this.setupSignalREvents();
       console.log('✅ Connected');
-      
-      // Monitor SignalR connection state without affecting WebRTC
-      this.signalR.connectionState$.subscribe(state => {
-        console.log('📡 SignalR state changed:', state);
-        // Don't change UI state if WebRTC is already connected
-        if (!this.isWebRTCConnected) {
-          this.connectionStatus = state === signalR.HubConnectionState.Connected ? 'Connected' : 'Disconnected';
-        }
-      });
     } catch (error) {
       console.error('❌ Connection failed:', error);
       this.errorMessage = 'Failed to connect to server';
@@ -330,14 +318,12 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     this.signalR.ConnectionOn('StartCall', async (roomId: string) => {
       console.log('🎯 Initiator:', roomId);
       this.RoomId = roomId;
-      this.isWaiting = false;
       await this.createAndSendOffer();
     });
 
     this.signalR.ConnectionOn('Waiting', () => {
-      console.log('⏳ Waiting for partner...');
+      console.log('⏳ Waiting...');
       this.isConnecting = false;
-      this.isWaiting = true;
     });
 
     this.signalR.ConnectionOn('IncomingCall', async (roomId: string) => {
@@ -345,8 +331,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       this.RoomId = roomId;
       this.isInCall = true;
       this.isConnecting = false;
-      this.isWaiting = false;
-      // Camera already started, just create peer connection
+      await this.startCamera1();
       this.createPeerConnection1();
     });
 
@@ -362,24 +347,15 @@ export class VideoChatComponent implements OnInit, OnDestroy {
 
     this.signalR.ConnectionOn('PartnerLeft', () => {
       console.log('👋 Partner left');
-      // Only clean up if WebRTC is not connected
-      if (!this.isWebRTCConnected) {
-        this.isInCall = false;
-        this.isConnecting = false;
-        this.isWaiting = false;
-        this.cleanupPeerConnection();
-        this.errorMessage = 'Partner disconnected. Click Start again.';
-      }
+      this.isInCall = false;
+      this.isConnecting = false;
+      this.cleanupPeerConnection();
     });
 
     this.signalR.ConnectionOn('Error', (code: string, msg: string) => {
-      console.error('❌ Server error:', code, msg);
-      // Don't show error if WebRTC is already connected
-      if (!this.isWebRTCConnected) {
-        this.errorMessage = msg;
-        this.isConnecting = false;
-        this.isWaiting = false;
-      }
+      console.error('❌ Error:', code, msg);
+      this.errorMessage = msg;
+      this.isConnecting = false;
     });
   }
 
@@ -390,8 +366,6 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   async startVideoChat() {
     try {
       this.isConnecting = true;
-      this.isWaiting = false;
-      this.isWebRTCConnected = false;
       this.errorMessage = '';
       
       // Start camera first
@@ -401,48 +375,28 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       this.createPeerConnection1();
       
       // Find partner
-      await this.signalR.invoke('FindPartner');
+      await this.signalR.invokeWithoutParams('FindPartner');
       
     } catch (error: any) {
       console.error('❌ Error:', error);
       this.errorMessage = error.message || 'Failed to start';
       this.isConnecting = false;
-      this.isWaiting = false;
       this.cleanup();
     }
   }
 
   async endCall() {
-    // Close WebRTC first
-    this.cleanupPeerConnection();
-    this.isWebRTCConnected = false;
-    
-    // Then notify server if in room
     if (this.RoomId) {
-      try {
-        await this.signalR.invoke('Cancel', this.RoomId);
-      } catch (error) {
-        console.log('⚠️ Could not notify server (may be disconnected)');
-      }
+      await this.signalR.invoke('Cancel', this.RoomId);
     }
-    
     this.cleanup();
   }
 
   async skipPartner() {
     if (this.RoomId) {
       this.isConnecting = true;
-      this.isWaiting = false;
-      this.isWebRTCConnected = false;
+      await this.signalR.invoke('Next', this.RoomId);
       this.cleanupPeerConnection();
-      
-      try {
-        await this.signalR.invoke('Next', this.RoomId);
-      } catch (error) {
-        console.log('⚠️ Could not skip partner (may be disconnected)');
-        // If SignalR is disconnected, just restart
-        this.startVideoChat();
-      }
     }
   }
 
@@ -461,7 +415,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // WEBRTC METHODS - These work independently of SignalR
+  // WEBRTC METHODS
   // ─────────────────────────────────────────────────────────────
 
   async startCamera1() {
@@ -471,6 +425,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
         audio: true
       });
 
+      // Use setTimeout to ensure DOM is rendered
       setTimeout(() => {
         if (this.localVideo?.nativeElement) {
           this.localVideo.nativeElement.srcObject = this.localStream;
@@ -492,16 +447,14 @@ export class VideoChatComponent implements OnInit, OnDestroy {
 
     this.peerConnection = new RTCPeerConnection(this.configuration);
 
-    // Add local tracks
     this.localStream.getTracks().forEach(track => {
       if (this.peerConnection) {
         this.peerConnection.addTrack(track, this.localStream!);
       }
     });
 
-    // Handle remote tracks
     this.peerConnection.ontrack = (event) => {
-      console.log('🎥 Remote track received');
+      console.log('🎥 Remote track');
       setTimeout(() => {
         if (this.remoteVideo?.nativeElement) {
           this.remoteVideo.nativeElement.srcObject = event.streams[0];
@@ -510,7 +463,6 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       }, 100);
     };
 
-    // Handle ICE candidates
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate === null && this.peerConnection) {
         this.localSdp = JSON.stringify(this.peerConnection.localDescription);
@@ -518,78 +470,44 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       }
     };
 
-    // ✅ Monitor WebRTC connection state - independent of SignalR
     this.peerConnection.onconnectionstatechange = () => {
-      const state = this.peerConnection?.connectionState;
-      console.log('🔌 WebRTC state:', state);
-      
-      if (state === 'connected') {
+      if (this.peerConnection?.connectionState === 'connected') {
         this.isInCall = true;
         this.isConnecting = false;
-        this.isWaiting = false;
-        this.isWebRTCConnected = true;
-        this.connectionStatus = 'Connected (P2P)';
-        console.log('✅ WebRTC Peer-to-Peer connected!');
-      } else if (state === 'disconnected' || state === 'failed' || state === 'closed') {
-        this.isWebRTCConnected = false;
-        console.log('⚠️ WebRTC disconnected');
-        // Only clean up if not already cleaning
-        if (state !== 'closed') {
-          this.cleanupPeerConnection();
-        }
-      }
-    };
-
-    this.peerConnection.oniceconnectionstatechange = () => {
-      const state = this.peerConnection?.iceConnectionState;
-      console.log('🧊 ICE state:', state);
-      
-      if (state === 'connected' || state === 'completed') {
-        console.log('✅ ICE connected');
+        console.log('✅ Call connected!');
       }
     };
   }
 
   async createAndSendOffer() {
     if (!this.peerConnection) return;
-    
     const offer = await this.peerConnection.createOffer();
     await this.peerConnection.setLocalDescription(offer);
     await this.waitForIceGathering();
-    
-    try {
-      await this.signalR.invoke('SendOffer', this.RoomId, this.localSdp);
-      console.log('📤 Offer sent');
-    } catch (error) {
-      console.log('⚠️ Could not send offer (SignalR may be disconnected)');
-      // Show error but don't break
-      this.errorMessage = 'Failed to send offer. Please try again.';
-    }
+    await this.signalR.invoke('SendOffer', this.RoomId, this.localSdp);
+    this.isInCall = true;
+    this.isConnecting = false;
+    console.log('📤 Offer sent');
   }
 
   async createAndSendAnswer(remoteSdp: string) {
     if (!this.peerConnection) return;
-    
     const remoteDesc = JSON.parse(remoteSdp);
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
     const answer = await this.peerConnection.createAnswer();
     await this.peerConnection.setLocalDescription(answer);
     await this.waitForIceGathering();
-    
-    try {
-      await this.signalR.invoke('SendAnswer', this.RoomId, this.localSdp);
-      console.log('📤 Answer sent');
-    } catch (error) {
-      console.log('⚠️ Could not send answer (SignalR may be disconnected)');
-      this.errorMessage = 'Failed to send answer. Please try again.';
-    }
+    await this.signalR.invoke('SendAnswer', this.RoomId, this.localSdp);
+    this.isInCall = true;
+    this.isConnecting = false;
+    console.log('📤 Answer sent');
   }
 
   async setRemoteDescription(sdp: string) {
     if (!this.peerConnection) return;
     const remoteDesc = JSON.parse(sdp);
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-    console.log('✅ Remote description set');
+    console.log('✅ Remote set');
   }
 
   private waitForIceGathering(): Promise<void> {
@@ -620,8 +538,6 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     }
     this.localSdp = '';
     this.remoteSdp = '';
-    this.isWebRTCConnected = false;
-    this.connectionStatus = 'Connected';
   }
 
   private cleanup() {
@@ -638,7 +554,6 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     }
     this.isInCall = false;
     this.isConnecting = false;
-    this.isWaiting = false;
     this.RoomId = '';
   }
 }
