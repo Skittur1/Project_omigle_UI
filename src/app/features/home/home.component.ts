@@ -9,7 +9,7 @@ import { StatsBarComponent } from '../../shared/components/stats-bar/stats-bar.c
 
 @Component({
   selector: 'app-home',
-  imports: [TestimonialsComponent,PremiumFeaturesComponent,CtaBannerComponent,GlobeVisualizationComponent,HeroComponent,HowItWorksComponent,StatsBarComponent],
+  imports: [TestimonialsComponent,PremiumFeaturesComponent,CtaBannerComponent,HeroComponent,HowItWorksComponent,StatsBarComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css',
 })

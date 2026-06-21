@@ -2,8 +2,9 @@ import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MockSignalRService } from '../../../core/services/signal-r.service';
+
 import { Subscription } from 'rxjs';
+import { SignalRService } from '../../../core/services/signal-r.service';
 
 interface Message {
   userName: string;
@@ -114,7 +115,7 @@ interface Message {
   `]
 })
 export class TextChatComponent implements OnInit, OnDestroy {
-  private signalRService = inject(MockSignalRService);
+  private signalRService = inject(SignalRService);
   private router = inject(Router);
   
   userName = '';
@@ -132,11 +133,7 @@ export class TextChatComponent implements OnInit, OnDestroy {
 
   private setupSubscriptions() {
     this.subscriptions.push(
-      this.signalRService.matched$.subscribe(async (partnerId) => {
-        this.partnerId = partnerId;
-        this.isInChat = true;
-        this.isConnecting = false;
-      })
+     
     );
 
     // Add text message handling here
@@ -147,11 +144,7 @@ export class TextChatComponent implements OnInit, OnDestroy {
     if (!this.userName.trim()) return;
     
     this.isConnecting = true;
-    const connected = await this.signalRService.startConnection(this.userName);
-    if (!connected) {
-      this.isConnecting = false;
-      alert('Failed to connect');
-    }
+   
   }
 
   sendMessage() {

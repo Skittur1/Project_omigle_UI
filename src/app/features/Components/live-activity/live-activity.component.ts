@@ -6,7 +6,7 @@ import { FormatNumberPipe} from '../../../shared/pipes/formatnumber.pipe'
 @Component({
   selector: 'app-live-activity',
   standalone: true,
-  imports: [CommonModule, FormatNumberPipe],
+  imports: [CommonModule],
   templateUrl: './live-activity.component.html',
   styleUrl: './live-activity.component.css'
 })
