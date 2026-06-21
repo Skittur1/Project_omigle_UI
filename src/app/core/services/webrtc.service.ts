@@ -28,19 +28,32 @@ export class WebRTCService {
    
 
 
-  configuration: RTCConfiguration = {
+   configuration: RTCConfiguration = {
     iceServers: [
+      // STUN servers
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      
+      // TURN servers - Free public TURN servers
       {
-        urls: 'stun:stun.l.google.com:19302'
+        urls: [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:3478'
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
       },
- 
-      // Example TURN
       {
-        urls: 'turn:YOUR_TURN_SERVER:3478',
-        username: 'user',
-        credential: 'password'
+        urls: [
+          'turn:turn.anyfirewall.com:443?transport=tcp',
+          'turn:turn.anyfirewall.com:443?transport=udp'
+        ],
+        username: 'webrtc',
+        credential: 'webrtc'
       }
-    ]
+    ],
+    iceTransportPolicy: 'all' // Try all candidates (host, srflx, relay)
   };
 
 
