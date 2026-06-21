@@ -345,12 +345,12 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       await this.setRemoteDescription(sdp);
     });
 
-    this.signalR.ConnectionOn('PartnerLeft', () => {
-      console.log('👋 Partner left');
-      this.isInCall = false;
-      this.isConnecting = false;
-      this.cleanupPeerConnection();
-    });
+    // this.signalR.ConnectionOn('PartnerLeft', () => {
+    //   console.log('👋 Partner left');
+    //   this.isInCall = false;
+    //   this.isConnecting = false;
+    //   this.cleanupPeerConnection();
+    // });
 
     this.signalR.ConnectionOn('Error', (code: string, msg: string) => {
       console.error('❌ Error:', code, msg);
