@@ -1,12 +1,259 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, inject, AfterViewInit } from '@angular/core';
+// import { Component, OnInit, OnDestroy, ViewChild, ElementRef, inject, AfterViewInit } from '@angular/core';
+// import { CommonModule } from '@angular/common';
+// import { FormsModule } from '@angular/forms';
+// import { Router } from '@angular/router';
+// import { FirebaseSignalingService } from '../../../core/services/firebase-signaling.service';
+// import { WebRTCService } from '../../../core/services/webrtc.service';
+// import { Subscription } from 'rxjs';
+// import { SignalRService } from '../../../core/services/signal-r.service';
+
+
+// @Component({
+//   selector: 'app-video-chat',
+//   standalone: true,
+//   imports: [CommonModule, FormsModule],
+//   templateUrl: './video-chat.component.html',
+//   styleUrls: ['./video-chat.component.css']
+// })
+// export class VideoChatComponent implements OnInit, AfterViewInit, OnDestroy {
+  
+
+//   isAudioEnabled = false;
+//   isVideoEnabled= false;
+//   isInCall = false;
+//   isConnecting = false;
+//   errorMessage = '';
+//   userName = '';
+//   onlineUsers: string[] = [];
+//   connectionStatus = '';
+
+//   RoomId = '';
+//    constructor(private SignalRService:SignalRService) 
+//      {
+    
+  
+//      }
+//  async  ngOnInit() {
+
+//     await this.SignalRService.startConnection();
+
+//     // initiator 
+//     this.SignalRService.ConnectionOn('startcall', (roomId: any) => {
+//       console.log('Received offer:', roomId);
+//       this.RoomId = roomId;
+//       this.createPeerConnection1();
+
+//       this.SignalRService.invoke('sendOffer',roomId, this.localSdp);
+
+//   });
+
+//   //initiator
+//   this.SignalRService.ConnectionOn('waiting', () => {
+//       console.log('No Match found');
+//   });
+
+//   // partner
+//   this.SignalRService.ConnectionOn('incomingcall', (roomId: any) => {
+//       console.log('partner roomId - ',roomId);
+//       this.RoomId = roomId;
+//   });
+
+
+//   // partner
+//   this.SignalRService.ConnectionOn('ReceiveOffer', (sdp: any) => {
+//       console.log('initiator sdp:', sdp);
+     
+//       this.createPeerConnection1();
+//       this.createAnswer(sdp);
+//       this.SignalRService.invoke('SendAnswer', this.RoomId, this.localSdp);
+//   });
+
+//   // initiator
+//   this.SignalRService.ConnectionOn('ReceiveAnswer', (sdp: any) => {
+//       console.log('partner sdp:', sdp);
+     
+//       // connect the video
+//       this.setRemoteDescription(sdp);
+//   });
+
+// }
+
+
+
+//   ngAfterViewInit(): void {
+//     throw new Error('Method not implemented.');
+//   }
+//   ngOnDestroy(): void {
+//     throw new Error('Method not implemented.');
+//   }
+//     localSdp = '';
+//     remoteSdp = '';
+   
+//     localStream!: MediaStream;
+   
+//     peerConnection!: RTCPeerConnection;
+  
+//     @ViewChild('localVideo')
+//     localVideo!: ElementRef<HTMLVideoElement>;
+   
+//     @ViewChild('remoteVideo')
+//     remoteVideo!: ElementRef<HTMLVideoElement>;
+     
+  
+  
+//     configuration: RTCConfiguration = {
+//       iceServers: [
+//         {
+//           urls: 'stun:stun.l.google.com:19302'
+//         },
+   
+//         // Example TURN
+//         {
+//           urls: 'turn:YOUR_TURN_SERVER:3478',
+//           username: 'user',
+//           credential: 'password'
+//         }
+//       ]
+//     };
+  
+  
+//     OnStartButtonClick() {
+//       this.startCamera1();
+//       this.createPeerConnection1();
+//       this.SignalRService.invoke('FindPartner');
+      
+//     }
+    
+
+  
+//      async startCamera1() {
+   
+//       this.localStream =
+//         await navigator.mediaDevices.getUserMedia({
+//           video: true,
+//           audio: true
+//         });
+   
+//         this.isInCall = true;
+//          this.localVideo.nativeElement.srcObject =
+//         this.localStream;
+//       }
+      
+  
+//     createPeerConnection1() {
+   
+//       this.peerConnection =
+//         new RTCPeerConnection(this.configuration);
+   
+//       this.localStream
+//         .getTracks()
+//         .forEach(track => {
+//           this.peerConnection.addTrack(
+//             track,
+//             this.localStream
+//           );
+//         });
+   
+//       this.peerConnection.ontrack = event => {
+//         this.remoteVideo.nativeElement.srcObject =
+//           event.streams[0];
+//       };
+   
+//       this.peerConnection.onicecandidate = () => {
+   
+//         if (
+//           this.peerConnection.iceGatheringState ===
+//           'complete'
+//         ) {
+   
+//           this.localSdp = JSON.stringify(
+//             this.peerConnection.localDescription
+//           );
+//         }
+//         console.log('ICE Candidate:', this.localSdp);
+//       };
+   
+//       this.peerConnection.oniceconnectionstatechange =
+//         () => {
+//           console.log(
+//             'ICE State:',
+//             this.peerConnection.iceConnectionState
+//           );
+//         };
+//     }
+
+//    async  startVideoChat()
+//     {
+
+//       await this.SignalRService.invokeWithoutParams('FindPartner');
+
+//       await  this.startCamera1();     
+   
+//   }
+
+// async setRemoteDescription(sdp: string) {
+ 
+//     const remoteDesc =
+//       JSON.parse(sdp);
+ 
+//     await this.peerConnection.setRemoteDescription(
+//       new RTCSessionDescription(remoteDesc)
+//     );
+//   }
+
+
+//   async createAnswer(remotesdp: string) {
+ 
+//     const remoteDesc =
+//       JSON.parse(this.remoteSdp);
+ 
+//     await this.peerConnection.setRemoteDescription(
+//       new RTCSessionDescription(remoteDesc)
+//     );
+ 
+//     const answer =
+//       await this.peerConnection.createAnswer();
+ 
+//     await this.peerConnection.setLocalDescription(
+//       answer
+//     );
+//   }
+//   endCall(){
+
+//     this.SignalRService.invoke('Cancel','roomId');
+   
+//   }
+
+//   nextcall(){
+
+//     this.SignalRService.invoke('Next','roomId');
+  
+//   }
+
+//   toggleAudio()
+//   {
+//     this.isAudioEnabled
+//   }
+//   toggleVideo()
+//   {
+//     this.isVideoEnabled
+//   }
+
+//   skipPartner()
+//   {
+//      this.SignalRService.invoke('Next','roomId');
+//   }
+
+// }
+
+
+
+//==================================================================
+
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { FirebaseSignalingService } from '../../../core/services/firebase-signaling.service';
-import { WebRTCService } from '../../../core/services/webrtc.service';
-import { Subscription } from 'rxjs';
 import { SignalRService } from '../../../core/services/signal-r.service';
-
 
 @Component({
   selector: 'app-video-chat',
@@ -15,233 +262,298 @@ import { SignalRService } from '../../../core/services/signal-r.service';
   templateUrl: './video-chat.component.html',
   styleUrls: ['./video-chat.component.css']
 })
-export class VideoChatComponent implements OnInit, AfterViewInit, OnDestroy {
+export class VideoChatComponent implements OnInit, OnDestroy {
   
-
-  isAudioEnabled = false;
-  isVideoEnabled= false;
+  // UI State
   isInCall = false;
   isConnecting = false;
   errorMessage = '';
   userName = '';
-  onlineUsers: string[] = [];
-  connectionStatus = '';
-
+  connectionStatus = 'Disconnected';
   RoomId = '';
-   constructor(private SignalRService:SignalRService) 
-     {
-    
-  
-     }
- async  ngOnInit() {
+  isAudioEnabled = true;
+  isVideoEnabled = true;
 
-    await this.SignalRService.startConnection();
+  // WebRTC
+  localSdp = '';
+  remoteSdp = '';
+  localStream: MediaStream | null = null;
+  peerConnection: RTCPeerConnection | null = null;
 
-    // initiator 
-    this.SignalRService.ConnectionOn('startcall', (roomId: any) => {
-      console.log('Received offer:', roomId);
-      this.RoomId = roomId;
-      this.createPeerConnection1();
+  // ViewChild with timeout fallback
+  @ViewChild('localVideo') localVideo!: ElementRef<HTMLVideoElement>;
+  @ViewChild('remoteVideo') remoteVideo!: ElementRef<HTMLVideoElement>;
 
-      this.SignalRService.invoke('sendOffer',roomId, this.localSdp);
+  configuration: RTCConfiguration = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  };
 
-  });
+  constructor(private signalR: SignalRService) {}
 
-  //initiator
-  this.SignalRService.ConnectionOn('waiting', () => {
-      console.log('No Match found');
-  });
-
-  // partner
-  this.SignalRService.ConnectionOn('incomingcall', (roomId: any) => {
-      console.log('partner roomId - ',roomId);
-      this.RoomId = roomId;
-  });
-
-
-  // partner
-  this.SignalRService.ConnectionOn('ReceiveOffer', (sdp: any) => {
-      console.log('initiator sdp:', sdp);
-     
-      this.createPeerConnection1();
-      this.createAnswer(sdp);
-      this.SignalRService.invoke('SendAnswer', this.RoomId, this.localSdp);
-  });
-
-  // initiator
-  this.SignalRService.ConnectionOn('ReceiveAnswer', (sdp: any) => {
-      console.log('partner sdp:', sdp);
-     
-      // connect the video
-      this.setRemoteDescription(sdp);
-  });
-
-}
-
-
-
-  ngAfterViewInit(): void {
-    throw new Error('Method not implemented.');
-  }
-  ngOnDestroy(): void {
-    throw new Error('Method not implemented.');
-  }
-    localSdp = '';
-    remoteSdp = '';
-   
-    localStream!: MediaStream;
-   
-    peerConnection!: RTCPeerConnection;
-  
-    @ViewChild('localVideo')
-    localVideo!: ElementRef<HTMLVideoElement>;
-   
-    @ViewChild('remoteVideo')
-    remoteVideo!: ElementRef<HTMLVideoElement>;
-     
-  
-  
-    configuration: RTCConfiguration = {
-      iceServers: [
-        {
-          urls: 'stun:stun.l.google.com:19302'
-        },
-   
-        // Example TURN
-        {
-          urls: 'turn:YOUR_TURN_SERVER:3478',
-          username: 'user',
-          credential: 'password'
-        }
-      ]
-    };
-  
-  
-    OnStartButtonClick() {
-      this.startCamera1();
-      this.createPeerConnection1();
-      this.SignalRService.invoke('FindPartner');
-      
+  async ngOnInit() {
+    try {
+      await this.signalR.startConnection();
+      this.connectionStatus = 'Connected';
+      this.setupSignalREvents();
+      console.log('✅ Connected');
+    } catch (error) {
+      console.error('❌ Connection failed:', error);
+      this.errorMessage = 'Failed to connect to server';
     }
-    
+  }
 
-  
-     async startCamera1() {
-   
-      this.localStream =
-        await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
-   
-        this.isInCall = true;
-         this.localVideo.nativeElement.srcObject =
-        this.localStream;
+  ngOnDestroy() {
+    this.cleanup();
+    this.signalR.disconnect();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // SIGNALR EVENTS
+  // ─────────────────────────────────────────────────────────────
+
+  private setupSignalREvents() {
+    this.signalR.ConnectionOn('StartCall', async (roomId: string) => {
+      console.log('🎯 Initiator:', roomId);
+      this.RoomId = roomId;
+      await this.createAndSendOffer();
+    });
+
+    this.signalR.ConnectionOn('Waiting', () => {
+      console.log('⏳ Waiting...');
+      this.isConnecting = false;
+    });
+
+    this.signalR.ConnectionOn('IncomingCall', async (roomId: string) => {
+      console.log('📞 Incoming:', roomId);
+      this.RoomId = roomId;
+      this.isInCall = true;
+      this.isConnecting = false;
+      await this.startCamera1();
+      this.createPeerConnection1();
+    });
+
+    this.signalR.ConnectionOn('ReceiveOffer', async (sdp: string) => {
+      console.log('📥 Received offer');
+      await this.createAndSendAnswer(sdp);
+    });
+
+    this.signalR.ConnectionOn('ReceiveAnswer', async (sdp: string) => {
+      console.log('📥 Received answer');
+      await this.setRemoteDescription(sdp);
+    });
+
+    this.signalR.ConnectionOn('PartnerLeft', () => {
+      console.log('👋 Partner left');
+      this.isInCall = false;
+      this.isConnecting = false;
+      this.cleanupPeerConnection();
+    });
+
+    this.signalR.ConnectionOn('Error', (code: string, msg: string) => {
+      console.error('❌ Error:', code, msg);
+      this.errorMessage = msg;
+      this.isConnecting = false;
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // UI ACTIONS
+  // ─────────────────────────────────────────────────────────────
+
+  async startVideoChat() {
+    try {
+      this.isConnecting = true;
+      this.errorMessage = '';
+      
+      // Start camera first
+      await this.startCamera1();
+      
+      // Create peer connection
+      this.createPeerConnection1();
+      
+      // Find partner
+      await this.signalR.invokeWithoutParams('FindPartner');
+      
+    } catch (error: any) {
+      console.error('❌ Error:', error);
+      this.errorMessage = error.message || 'Failed to start';
+      this.isConnecting = false;
+      this.cleanup();
+    }
+  }
+
+  async endCall() {
+    if (this.RoomId) {
+      await this.signalR.invoke('Cancel', this.RoomId);
+    }
+    this.cleanup();
+  }
+
+  async skipPartner() {
+    if (this.RoomId) {
+      this.isConnecting = true;
+      await this.signalR.invoke('Next', this.RoomId);
+      this.cleanupPeerConnection();
+    }
+  }
+
+  toggleAudio() {
+    this.isAudioEnabled = !this.isAudioEnabled;
+    if (this.localStream) {
+      this.localStream.getAudioTracks().forEach(t => t.enabled = this.isAudioEnabled);
+    }
+  }
+
+  toggleVideo() {
+    this.isVideoEnabled = !this.isVideoEnabled;
+    if (this.localStream) {
+      this.localStream.getVideoTracks().forEach(t => t.enabled = this.isVideoEnabled);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // WEBRTC METHODS
+  // ─────────────────────────────────────────────────────────────
+
+  async startCamera1() {
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+
+      // Use setTimeout to ensure DOM is rendered
+      setTimeout(() => {
+        if (this.localVideo?.nativeElement) {
+          this.localVideo.nativeElement.srcObject = this.localStream;
+          this.localVideo.nativeElement.play().catch(e => console.warn('Play error:', e));
+          console.log('✅ Camera started');
+        }
+      }, 100);
+
+    } catch (error: any) {
+      console.error('❌ Camera error:', error);
+      throw new Error(`Camera access denied: ${error.message}`);
+    }
+  }
+
+  createPeerConnection1() {
+    if (!this.localStream) {
+      throw new Error('Camera not started');
+    }
+
+    this.peerConnection = new RTCPeerConnection(this.configuration);
+
+    this.localStream.getTracks().forEach(track => {
+      if (this.peerConnection) {
+        this.peerConnection.addTrack(track, this.localStream!);
       }
-      
-  
-    createPeerConnection1() {
-   
-      this.peerConnection =
-        new RTCPeerConnection(this.configuration);
-   
-      this.localStream
-        .getTracks()
-        .forEach(track => {
-          this.peerConnection.addTrack(
-            track,
-            this.localStream
-          );
-        });
-   
-      this.peerConnection.ontrack = event => {
-        this.remoteVideo.nativeElement.srcObject =
-          event.streams[0];
-      };
-   
-      this.peerConnection.onicecandidate = () => {
-   
-        if (
-          this.peerConnection.iceGatheringState ===
-          'complete'
-        ) {
-   
-          this.localSdp = JSON.stringify(
-            this.peerConnection.localDescription
-          );
+    });
+
+    this.peerConnection.ontrack = (event) => {
+      console.log('🎥 Remote track');
+      setTimeout(() => {
+        if (this.remoteVideo?.nativeElement) {
+          this.remoteVideo.nativeElement.srcObject = event.streams[0];
+          this.remoteVideo.nativeElement.play().catch(e => console.warn('Play error:', e));
         }
-        console.log('ICE Candidate:', this.localSdp);
-      };
-   
-      this.peerConnection.oniceconnectionstatechange =
-        () => {
-          console.log(
-            'ICE State:',
-            this.peerConnection.iceConnectionState
-          );
+      }, 100);
+    };
+
+    this.peerConnection.onicecandidate = (event) => {
+      if (event.candidate === null && this.peerConnection) {
+        this.localSdp = JSON.stringify(this.peerConnection.localDescription);
+        console.log('✅ SDP ready');
+      }
+    };
+
+    this.peerConnection.onconnectionstatechange = () => {
+      if (this.peerConnection?.connectionState === 'connected') {
+        this.isInCall = true;
+        this.isConnecting = false;
+        console.log('✅ Call connected!');
+      }
+    };
+  }
+
+  async createAndSendOffer() {
+    if (!this.peerConnection) return;
+    const offer = await this.peerConnection.createOffer();
+    await this.peerConnection.setLocalDescription(offer);
+    await this.waitForIceGathering();
+    await this.signalR.invoke('SendOffer', this.RoomId, this.localSdp);
+    this.isInCall = true;
+    this.isConnecting = false;
+    console.log('📤 Offer sent');
+  }
+
+  async createAndSendAnswer(remoteSdp: string) {
+    if (!this.peerConnection) return;
+    const remoteDesc = JSON.parse(remoteSdp);
+    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+    const answer = await this.peerConnection.createAnswer();
+    await this.peerConnection.setLocalDescription(answer);
+    await this.waitForIceGathering();
+    await this.signalR.invoke('SendAnswer', this.RoomId, this.localSdp);
+    this.isInCall = true;
+    this.isConnecting = false;
+    console.log('📤 Answer sent');
+  }
+
+  async setRemoteDescription(sdp: string) {
+    if (!this.peerConnection) return;
+    const remoteDesc = JSON.parse(sdp);
+    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+    console.log('✅ Remote set');
+  }
+
+  private waitForIceGathering(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this.peerConnection) { resolve(); return; }
+      if (this.peerConnection.iceGatheringState === 'complete') {
+        this.localSdp = JSON.stringify(this.peerConnection.localDescription);
+        resolve();
+      } else {
+        this.peerConnection.onicecandidate = (event) => {
+          if (event.candidate === null) {
+            this.localSdp = JSON.stringify(this.peerConnection!.localDescription);
+            resolve();
+          }
         };
+      }
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // CLEANUP
+  // ─────────────────────────────────────────────────────────────
+
+  private cleanupPeerConnection() {
+    if (this.peerConnection) {
+      this.peerConnection.close();
+      this.peerConnection = null;
     }
-
-   async  startVideoChat()
-    {
-
-      await this.SignalRService.invokeWithoutParams('FindPartner');
-
-      await  this.startCamera1();     
-   
+    this.localSdp = '';
+    this.remoteSdp = '';
   }
 
-async setRemoteDescription(sdp: string) {
- 
-    const remoteDesc =
-      JSON.parse(sdp);
- 
-    await this.peerConnection.setRemoteDescription(
-      new RTCSessionDescription(remoteDesc)
-    );
+  private cleanup() {
+    this.cleanupPeerConnection();
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(t => t.stop());
+      this.localStream = null;
+    }
+    if (this.localVideo?.nativeElement) {
+      this.localVideo.nativeElement.srcObject = null;
+    }
+    if (this.remoteVideo?.nativeElement) {
+      this.remoteVideo.nativeElement.srcObject = null;
+    }
+    this.isInCall = false;
+    this.isConnecting = false;
+    this.RoomId = '';
   }
-
-
-  async createAnswer(remotesdp: string) {
- 
-    const remoteDesc =
-      JSON.parse(this.remoteSdp);
- 
-    await this.peerConnection.setRemoteDescription(
-      new RTCSessionDescription(remoteDesc)
-    );
- 
-    const answer =
-      await this.peerConnection.createAnswer();
- 
-    await this.peerConnection.setLocalDescription(
-      answer
-    );
-  }
-  endCall(){
-
-    this.SignalRService.invoke('Cancel','roomId');
-   
-  }
-
-  nextcall(){
-
-    this.SignalRService.invoke('Next','roomId');
-  
-  }
-
-  toggleAudio()
-  {
-    this.isAudioEnabled
-  }
-  toggleVideo()
-  {
-    this.isVideoEnabled
-  }
-
-  skipPartner()
-  {
-     this.SignalRService.invoke('Next','roomId');
-  }
-
 }
