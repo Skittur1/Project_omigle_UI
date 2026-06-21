@@ -34,9 +34,9 @@ export class SignalRService {
      
       await this.hubConnection.start();
 
-      this.hubConnection.onreconnected(() => {
-        console.log('Reconnected to SignalR hub');
-      });
+      // this.hubConnection.onreconnected(() => {
+      //   console.log('Reconnected to SignalR hub');
+      // });
 
       this.hubConnection.onclose(() => {
         console.log('Disconnected from SignalR hub');
