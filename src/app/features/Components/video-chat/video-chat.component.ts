@@ -177,45 +177,100 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     }
   }
 
+  // createPeerConnection1() {
+  //   if (!this.localStream) {
+  //     throw new Error('Camera not started');
+  //   }
+
+  //   this.peerConnection = new RTCPeerConnection(this.configuration);
+
+  //   this.localStream.getTracks().forEach(track => {
+  //     if (this.peerConnection) {
+  //       this.peerConnection.addTrack(track, this.localStream!);
+  //     }
+  //   });
+
+  //   this.peerConnection.ontrack = (event) => {
+  //     console.log('🎥 Remote track');
+  //     setTimeout(() => {
+  //       if (this.remoteVideo?.nativeElement) {
+  //         this.remoteVideo.nativeElement.srcObject = event.streams[0];
+  //         this.remoteVideo.nativeElement.play().catch(e => console.warn('Play error:', e));
+  //         this.remoteStreamAvailable = true;
+  //       }
+  //     }, 100);
+  //   };
+
+  //   this.peerConnection.onicecandidate = (event) => {
+  //     if (event.candidate === null && this.peerConnection) {
+  //       this.localSdp = JSON.stringify(this.peerConnection.localDescription);
+  //       console.log('✅ SDP ready');
+  //     }
+  //   };
+
+  //   this.peerConnection.onconnectionstatechange = () => {
+  //     if (this.peerConnection?.connectionState === 'connected') {
+  //       this.isInCall = true;
+  //       this.isConnecting = false;
+  //       console.log('✅ Call connected!');
+  //     }
+  //   };
+  // }
+
   createPeerConnection1() {
-    if (!this.localStream) {
-      throw new Error('Camera not started');
-    }
-
-    this.peerConnection = new RTCPeerConnection(this.configuration);
-
-    this.localStream.getTracks().forEach(track => {
-      if (this.peerConnection) {
-        this.peerConnection.addTrack(track, this.localStream!);
-      }
-    });
-
-    this.peerConnection.ontrack = (event) => {
-      console.log('🎥 Remote track');
-      setTimeout(() => {
-        if (this.remoteVideo?.nativeElement) {
-          this.remoteVideo.nativeElement.srcObject = event.streams[0];
-          this.remoteVideo.nativeElement.play().catch(e => console.warn('Play error:', e));
-          this.remoteStreamAvailable = true;
-        }
-      }, 100);
-    };
-
-    this.peerConnection.onicecandidate = (event) => {
-      if (event.candidate === null && this.peerConnection) {
-        this.localSdp = JSON.stringify(this.peerConnection.localDescription);
-        console.log('✅ SDP ready');
-      }
-    };
-
-    this.peerConnection.onconnectionstatechange = () => {
-      if (this.peerConnection?.connectionState === 'connected') {
-        this.isInCall = true;
-        this.isConnecting = false;
-        console.log('✅ Call connected!');
-      }
-    };
+  if (!this.localStream) {
+    throw new Error('Camera not started');
   }
+
+  this.peerConnection = new RTCPeerConnection(this.configuration);
+
+  this.localStream.getTracks().forEach(track => {
+    if (this.peerConnection) {
+      this.peerConnection.addTrack(track, this.localStream!);
+    }
+  });
+
+  this.peerConnection.ontrack = (event) => {
+    console.log('🎥 Remote track:', event.track.kind);
+
+    const videoEl = this.remoteVideo?.nativeElement;
+    if (!videoEl) return;
+
+    // Only assign srcObject once — reassigning on every ontrack call
+    // (it fires separately for audio and video) aborts the prior play() call
+    if (videoEl.srcObject !== event.streams[0]) {
+      videoEl.srcObject = event.streams[0];
+
+      videoEl.play()
+        .then(() => {
+          this.remoteStreamAvailable = true;
+          console.log('✅ Remote video playing');
+        })
+        .catch(err => {
+          // AbortError here is expected if a second track triggers another
+          // load before this resolves — safe to ignore, the next play() will succeed
+          if (err.name !== 'AbortError') {
+            console.error('❌ Remote play failed:', err);
+          }
+        });
+    }
+  };
+
+  this.peerConnection.onicecandidate = (event) => {
+    if (event.candidate === null && this.peerConnection) {
+      this.localSdp = JSON.stringify(this.peerConnection.localDescription);
+      console.log('✅ SDP ready');
+    }
+  };
+
+  this.peerConnection.onconnectionstatechange = () => {
+    if (this.peerConnection?.connectionState === 'connected') {
+      this.isInCall = true;
+      this.isConnecting = false;
+      console.log('✅ Call connected!');
+    }
+  };
+}
 
   async createAndSendOffer() {
     if (!this.peerConnection) return;
