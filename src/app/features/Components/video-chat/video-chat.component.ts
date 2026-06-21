@@ -27,6 +27,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   remoteSdp = '';
   localStream: MediaStream | null = null;
   peerConnection: RTCPeerConnection | null = null;
+  remoteStreamAvailable = false;
 
   @ViewChild('localVideo') localVideo!: ElementRef<HTMLVideoElement>;
   @ViewChild('remoteVideo') remoteVideo!: ElementRef<HTMLVideoElement>;
@@ -66,18 +67,20 @@ export class VideoChatComponent implements OnInit, OnDestroy {
 
     this.signalR.ConnectionOn('Waiting', () => {
       console.log('⏳ Waiting...');
-      this.isConnecting = false;
+      // Keep call UI visible and show connecting state while waiting for partner
+      this.isInCall = true;
+      this.isConnecting = true;
     });
 
     this.signalR.ConnectionOn('IncomingCall', async (roomId: string) => {
       console.log('📞 Incoming:', roomId);
       this.RoomId = roomId;
       this.isConnecting = false;
+      // Show call UI first so ViewChild video elements are available
+      this.isInCall = true;
       // ✅ Start camera and show local video
       await this.startCamera1();
       this.createPeerConnection1();
-      // ✅ Set isInCall to true to show video UI
-      this.isInCall = true;
     });
 
     this.signalR.ConnectionOn('ReceiveOffer', async (sdp: string) => {
@@ -99,7 +102,9 @@ export class VideoChatComponent implements OnInit, OnDestroy {
 
   async startVideoChat() {
     try {
+      // Show call UI and spinner while we get local camera and look for a partner
       this.isConnecting = true;
+      this.isInCall = true;
       this.errorMessage = '';
       
       await this.startCamera1();
@@ -150,13 +155,21 @@ export class VideoChatComponent implements OnInit, OnDestroy {
         audio: true
       });
 
-      setTimeout(() => {
-        if (this.localVideo?.nativeElement) {
-          this.localVideo.nativeElement.srcObject = this.localStream;
-          this.localVideo.nativeElement.play().catch(e => console.warn('Play error:', e));
-          console.log('✅ Camera started');
-        }
-      }, 100);
+      if (this.localVideo?.nativeElement) {
+        this.localVideo.nativeElement.srcObject = this.localStream;
+        // try to play the video; browsers may require a user gesture
+        this.localVideo.nativeElement.play().catch(e => console.warn('Play error:', e));
+        console.log('✅ Camera started');
+      } else {
+        // If ViewChild isn't ready yet, schedule a short retry
+        setTimeout(() => {
+          if (this.localVideo?.nativeElement) {
+            this.localVideo.nativeElement.srcObject = this.localStream;
+            this.localVideo.nativeElement.play().catch(e => console.warn('Play error:', e));
+            console.log('✅ Camera started (delayed)');
+          }
+        }, 200);
+      }
 
     } catch (error: any) {
       console.error('❌ Camera error:', error);
@@ -183,6 +196,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
         if (this.remoteVideo?.nativeElement) {
           this.remoteVideo.nativeElement.srcObject = event.streams[0];
           this.remoteVideo.nativeElement.play().catch(e => console.warn('Play error:', e));
+          this.remoteStreamAvailable = true;
         }
       }, 100);
     };
@@ -272,6 +286,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     if (this.remoteVideo?.nativeElement) {
       this.remoteVideo.nativeElement.srcObject = null;
     }
+    this.remoteStreamAvailable = false;
     this.isInCall = false;
     this.isConnecting = false;
     this.RoomId = '';
