@@ -24,15 +24,23 @@ export class SignalRService {
  
 
   async startConnection() {
+    if (
+      this.hubConnection &&
+      this.hubConnection.state !== signalR.HubConnectionState.Disconnected
+    ) {
+      return;
+    }
     
       this.hubConnection = new signalR.HubConnectionBuilder()
         .withUrl(this.connectionUrl)
-        .withAutomaticReconnect()
+        // .withAutomaticReconnect()
+        .withAutomaticReconnect([0, 2000, 5000, 10000])
         .configureLogging(signalR.LogLevel.Information)
         .build();
 
      
       await this.hubConnection.start();
+      console.log('SignalR connection established');  
 
       // this.hubConnection.onreconnected(() => {
       //   console.log('Reconnected to SignalR hub');
@@ -47,7 +55,11 @@ export class SignalRService {
 
 
 
-  ConnectionOn(MethodName: string, callback: (roomid:any,sdp:any  ) => void) {
+  ConnectionOn(MethodName: string, callback:any) {
+    if (!this.hubConnection) {
+      console.warn(`Hub connection not initialized for event: ${MethodName}`);
+      return;
+    } this.hubConnection.off(MethodName);
        this.hubConnection.on(MethodName,callback);
   }
 
@@ -55,17 +67,23 @@ export class SignalRService {
     this.hubConnection.off(MethodName);
   }
  
- async invokeWithoutParams<T>(methodName: string){
-    if (this.hubConnection) {
-      this.hubConnection.invoke<T>(methodName);
-    }
+ async invokeWithoutParams<T>(methodName: string): Promise<T> {
+    
+      return await this.hubConnection.invoke<T>(methodName);
 
   }
 
   async invoke<T>(methodName: string, roomid?: any,sdp?:any){
-    if (this.hubConnection) {
-      this.hubConnection.invoke<T>(methodName, roomid, sdp);
+    if (!this.hubConnection) {
+      throw new Error('Hub connection not initialized');
     }
+    if (sdp !== undefined) {
+      return await this.hubConnection.invoke<T>(methodName, roomid, sdp);
+    }
+    if (roomid !== undefined) {
+      return await this.hubConnection.invoke<T>(methodName, roomid);
+    }
+      return await this.hubConnection.invoke<T>(methodName);
 
   }
 
@@ -75,4 +93,8 @@ export class SignalRService {
       await this.hubConnection.stop();
     }
   }
+  isConnected(): boolean {
+    return this.hubConnection?.state === signalR.HubConnectionState.Connected;
+  }
+
 }
