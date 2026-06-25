@@ -20,8 +20,9 @@ export class WebRTCService {
   peerConnection: RTCPeerConnection | null = null;
   RoomId = '';
   
-  // Add this flag to prevent duplicate processing
+  // Flag to prevent duplicate processing
   private isProcessingOffer = false;
+  private isCaller = false; // Track if this user initiated the call
 
   configuration: RTCConfiguration = {
     iceServers: [
@@ -75,12 +76,15 @@ export class WebRTCService {
     this.signalR.ConnectionOn('StartCall', async (roomId: string) => {
       console.log('🎯 Initiator - StartCall:', roomId);
       this.RoomId = roomId;
+      this.isCaller = true;
       await this.createAndSendOffer();
     });
 
     this.signalR.ConnectionOn('IncomingCall', async (roomId: string) => {
       console.log('📞 IncomingCall:', roomId);
       this.RoomId = roomId;
+      this.isCaller = false;
+      // Create peer connection but don't create offer yet
       this.createPeerConnection1();
     });
 
@@ -127,6 +131,7 @@ export class WebRTCService {
     try {
       await this.startCamera();
       this.createPeerConnection1();
+      this.isCaller = true;
       await this.signalR.invokeWithoutParams('FindPartner');
       console.log('✅ Finding partner...');
     } catch (error) {
@@ -181,7 +186,7 @@ export class WebRTCService {
       return;
     }
 
-    // Reset flag when creating new connection
+    // Reset flags when creating new connection
     this.isProcessingOffer = false;
 
     if (this.peerConnection) {
@@ -414,5 +419,6 @@ export class WebRTCService {
       this.localStream = null;
     }
     this.RoomId = '';
+    this.isCaller = false;
   }
 }

@@ -145,40 +145,40 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   }
 
   async startVideoChat() {
-    // Check if username is entered
-    if (!this.userName || this.userName.trim() === '') {
-      this.errorMessage = 'Please enter your name first';
-      return;
-    }
-
-    try {
-      this.isConnecting = true;
-      this.isInCall = true;
-      this.errorMessage = '';
-      
-      await this.webrtc.startCamera();
-      this.webrtc.createPeerConnection1();
-      
-      // Wait for connection if needed
-      let attempts = 0;
-      while (!this.signalR.isConnected() && attempts < 5) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-      }
-      
-      if (!this.signalR.isConnected()) {
-        throw new Error('SignalR not connected');
-      }
-      
-      await this.signalR.invokeWithoutParams('FindPartner');
-      
-    } catch (error: any) {
-      console.error('❌ Error:', error);
-      this.errorMessage = error.message || 'Failed to start';
-      this.isConnecting = false;
-      this.webrtc.endCall();
-    }
+  // ✅ Check if username is entered
+  if (!this.userName || this.userName.trim() === '') {
+    this.errorMessage = 'Please enter your name first';
+    return;
   }
+
+  try {
+    this.isConnecting = true;
+    this.isInCall = true;
+    this.errorMessage = '';
+    
+    await this.webrtc.startCamera();
+    this.webrtc.createPeerConnection1();
+    
+    // Wait for connection if needed
+    let attempts = 0;
+    while (!this.signalR.isConnected() && attempts < 5) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      attempts++;
+    }
+    
+    if (!this.signalR.isConnected()) {
+      throw new Error('SignalR not connected');
+    }
+    
+    await this.signalR.invokeWithoutParams('FindPartner');
+    
+  } catch (error: any) {
+    console.error('❌ Error:', error);
+    this.errorMessage = error.message || 'Failed to start';
+    this.isConnecting = false;
+    this.webrtc.endCall();
+  }
+}
 
   async endCall() {
     await this.webrtc.endCall();
