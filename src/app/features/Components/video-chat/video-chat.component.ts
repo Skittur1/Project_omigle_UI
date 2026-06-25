@@ -35,7 +35,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     try {
       await this.signalR.startConnection();
       this.connectionStatus = 'Connected';
-       this.webrtc.init();
+      this.webrtc.init();
       this.setupSignalREvents();
       
       // Subscribe to WebRTC events
@@ -56,6 +56,10 @@ export class VideoChatComponent implements OnInit, OnDestroy {
         if (state === 'connected') {
           this.isConnecting = false;
           this.isInCall = true;
+        }
+        if (state === 'failed') {
+          this.isConnecting = false;
+          this.errorMessage = 'Connection failed. Please try again.';
         }
       });
 
@@ -85,6 +89,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
         this.isConnecting = false;
       } catch (error) {
         console.error('Error in StartCall:', error);
+        this.isConnecting = false;
       }
     });
 
@@ -103,8 +108,10 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       try {
         await this.webrtc.startCamera();
         this.webrtc.createPeerConnection1();
+        // Don't create offer here - wait for ReceiveOffer
       } catch (error) {
         console.error('Error in IncomingCall:', error);
+        this.isConnecting = false;
       }
     });
 
@@ -115,6 +122,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
         this.isConnecting = false;
       } catch (error) {
         console.error('Error handling offer:', error);
+        this.isConnecting = false;
       }
     });
 
@@ -125,6 +133,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
         this.isConnecting = false;
       } catch (error) {
         console.error('Error handling answer:', error);
+        this.isConnecting = false;
       }
     });
 
@@ -136,30 +145,40 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   }
 
   async startVideoChat() {
-  try {
-    this.isConnecting = true;
-    this.isInCall = true;
-    this.errorMessage = '';
-    
-    await this.webrtc.startCamera();
-    this.webrtc.createPeerConnection1();
-    
-    try {
-      await this.signalR.invokeWithoutParams('FindPartner');
-    } catch (error) {
-      // If failed, wait 1 second and try once more
-      console.log('Retrying FindPartner...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await this.signalR.invokeWithoutParams('FindPartner');
+    // Check if username is entered
+    if (!this.userName || this.userName.trim() === '') {
+      this.errorMessage = 'Please enter your name first';
+      return;
     }
-    
-  } catch (error: any) {
-    console.error('❌ Error:', error);
-    this.errorMessage = error.message || 'Failed to start';
-    this.isConnecting = false;
-    this.webrtc.endCall();
+
+    try {
+      this.isConnecting = true;
+      this.isInCall = true;
+      this.errorMessage = '';
+      
+      await this.webrtc.startCamera();
+      this.webrtc.createPeerConnection1();
+      
+      // Wait for connection if needed
+      let attempts = 0;
+      while (!this.signalR.isConnected() && attempts < 5) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+      }
+      
+      if (!this.signalR.isConnected()) {
+        throw new Error('SignalR not connected');
+      }
+      
+      await this.signalR.invokeWithoutParams('FindPartner');
+      
+    } catch (error: any) {
+      console.error('❌ Error:', error);
+      this.errorMessage = error.message || 'Failed to start';
+      this.isConnecting = false;
+      this.webrtc.endCall();
+    }
   }
-}
 
   async endCall() {
     await this.webrtc.endCall();
