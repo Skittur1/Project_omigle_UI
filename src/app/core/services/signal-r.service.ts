@@ -72,6 +72,9 @@ export class SignalRService {
     }
     return await this.hubConnection.invoke<T>(methodName, roomid, sdp);
   }
+  isConnected(): boolean {
+  return this.hubConnection?.state === signalR.HubConnectionState.Connected;
+}
 
   
 

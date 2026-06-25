@@ -53,6 +53,13 @@ export class WebRTCService {
   constructor(private signalR: SignalRService) {
     
   }
+  private async safeInvoke(method: string, roomId: string, data: any) {
+  if (!this.signalR.isConnected()) {
+    console.log('⏳ Waiting for connection...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  await this.signalR.invoke(method, roomId, data);
+}
   public init() {
   // Only set up events after SignalR is connected
   this.setupSignalREvents();
@@ -204,7 +211,7 @@ export class WebRTCService {
         console.log('🧊 ICE Candidate JSON:', JSON.stringify(event.candidate));
         console.log('🧊 ICE Candidate:', event.candidate.type);
         // Send ICE candidate to partner
-        this.signalR.invoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate))
+this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate))
           .catch(err => console.log('⚠️ Could not send ICE candidate:', err));
       }
       if (event.candidate === null && this.peerConnection) {
@@ -259,7 +266,8 @@ export class WebRTCService {
       await this.waitForIceGathering();
       
       console.log('📤 Sending offer...');
-      await this.signalR.invoke('SendOffer', this.RoomId, this.localSdp);
+    await this.safeInvoke('SendOffer', this.RoomId, this.localSdp);
+
       console.log('✅ Offer sent');
     } catch (error) {
       console.error('Error creating offer:', error);
@@ -288,7 +296,8 @@ export class WebRTCService {
       await this.waitForIceGathering();
       
       console.log('📤 Sending answer...');
-      await this.signalR.invoke('SendAnswer', this.RoomId, this.localSdp);
+     await this.safeInvoke('SendAnswer', this.RoomId, this.localSdp);
+
       console.log('✅ Answer sent');
     } catch (error) {
       console.error('Error creating answer:', error);
