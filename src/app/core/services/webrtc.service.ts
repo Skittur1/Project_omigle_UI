@@ -19,52 +19,33 @@ export class WebRTCService {
   remoteStream: MediaStream | null = null;
   peerConnection: RTCPeerConnection | null = null;
   RoomId = '';
-  
-  // Flag to prevent duplicate processing
-  private isProcessingOffer = false;
-  private pendingCandidates: RTCIceCandidate[] = [];
 
   configuration: RTCConfiguration = {
     iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
       {
-        urls: "stun:stun.relay.metered.ca:80",
+        urls: [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:3478'
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
       },
       {
-        urls: "turn:standard.relay.metered.ca:80",
-        username: "10fb06edf58626673cfcf637",
-        credential: "V4WfGmTQAcs20RmA",
-      },
-      {
-        urls: "turn:standard.relay.metered.ca:80?transport=tcp",
-        username: "10fb06edf58626673cfcf637",
-        credential: "V4WfGmTQAcs20RmA",
-      },
-      {
-        urls: "turn:standard.relay.metered.ca:443",
-        username: "10fb06edf58626673cfcf637",
-        credential: "V4WfGmTQAcs20RmA",
-      },
-      {
-        urls: "turns:standard.relay.metered.ca:443?transport=tcp",
-        username: "10fb06edf58626673cfcf637",
-        credential: "V4WfGmTQAcs20RmA",
-      },
+        urls: [
+          'turn:turn.anyfirewall.com:443?transport=tcp',
+          'turn:turn.anyfirewall.com:443?transport=udp'
+        ],
+        username: 'webrtc',
+        credential: 'webrtc'
+      }
     ],
+    iceTransportPolicy: 'all'
   };
 
   constructor(private signalR: SignalRService) {
-    
-  }
-  
-  private async safeInvoke(method: string, roomId: string, data: any) {
-    if (!this.signalR.isConnected()) {
-      console.log('⏳ Waiting for connection...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-    await this.signalR.invoke(method, roomId, data);
-  }
-  
-  public init() {
     this.setupSignalREvents();
   }
 
@@ -82,19 +63,17 @@ export class WebRTCService {
     this.signalR.ConnectionOn('IncomingCall', async (roomId: string) => {
       console.log('📞 IncomingCall:', roomId);
       this.RoomId = roomId;
+      // Just signal that we're ready, camera should already be started
       this.createPeerConnection1();
     });
 
     this.signalR.ConnectionOn('ReceiveOffer', async (sdp: string) => {
       console.log('📥 Received offer');
-      console.log('📥 OFFER SDP FROM SIGNALR:', sdp);
       await this.createAndSendAnswer(sdp);
     });
 
     this.signalR.ConnectionOn('ReceiveAnswer', async (sdp: string) => {
       console.log('📥 Received answer');
-      console.log('📥 Received answer event');
-      console.log('📥 ANSWER SDP FROM SIGNALR:', sdp);
       await this.setRemoteDescription(sdp);
     });
 
@@ -115,6 +94,7 @@ export class WebRTCService {
         audio: true
       });
       
+      // Emit local stream to component
       this.localStreamSubject.next(this.localStream);
       console.log('✅ Camera started');
       return this.localStream;
@@ -177,84 +157,96 @@ export class WebRTCService {
   // ─────────────────────────────────────────────────────────────
 
   createPeerConnection1() {
-  if (!this.localStream) {
-    console.error('❌ Local stream not available');
-    return;
-  }
-
-  // ✅ If peer connection already exists and is stable, don't recreate
-  if (this.peerConnection) {
-    const state = this.peerConnection.connectionState;
-    if (state === 'connected' || state === 'connecting') {
-      console.log('⚠️ Peer connection already in use, skipping recreation');
+    if (!this.localStream) {
+      console.error('❌ Local stream not available');
       return;
     }
-    console.log('⚠️ Peer connection exists but not connected, closing...');
-    this.peerConnection.close();
-    this.peerConnection = null;
+
+    if (this.peerConnection) {
+      console.log('⚠️ Peer connection already exists, closing...');
+      this.peerConnection.close();
+      this.peerConnection = null;
+    }
+
+    console.log('🔧 Creating peer connection...');
+    this.peerConnection = new RTCPeerConnection(this.configuration);
+
+    // Add local tracks
+    this.localStream.getTracks().forEach(track => {
+      if (this.peerConnection) {
+        this.peerConnection.addTrack(track, this.localStream!);
+        console.log(`✅ Added ${track.kind} track`);
+      }
+    });
+
+    // Handle remote tracks
+    this.peerConnection.ontrack = (event) => {
+      console.log('🎥 Remote track received:', event.track.kind);
+      this.remoteStream = event.streams[0];
+      this.remoteStreamSubject.next(this.remoteStream);
+    };
+
+    // Handle ICE candidates
+    this.peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log('🧊 ICE Candidate:', event.candidate.type);
+        // Send ICE candidate to partner
+        this.signalR.invoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate))
+          .catch(err => console.log('⚠️ Could not send ICE candidate:', err));
+      }
+      if (event.candidate === null && this.peerConnection) {
+        this.localSdp = JSON.stringify(this.peerConnection.localDescription);
+        console.log('✅ SDP ready');
+      }
+    };
+
+    // Monitor ICE connection state
+    this.peerConnection.oniceconnectionstatechange = () => {
+      const state = this.peerConnection?.iceConnectionState;
+      console.log('🧊 ICE State:', state);
+      
+      if (state === 'connected' || state === 'completed') {
+        console.log('✅ ICE connected successfully!');
+        this.connectionStateSubject.next('connected');
+      }
+      
+      if (state === 'failed') {
+        console.error('❌ ICE connection failed');
+        this.connectionStateSubject.next('failed');
+      }
+    };
+
+    // Monitor connection state
+    this.peerConnection.onconnectionstatechange = () => {
+      const state = this.peerConnection?.connectionState;
+      console.log('🔌 Connection state:', state);
+      
+      if (state === 'connected') {
+        console.log('✅ Call connected!');
+        this.connectionStateSubject.next('connected');
+      }
+    };
   }
-
-  // Reset flags when creating new connection
-  this.isProcessingOffer = false;
-  this.pendingCandidates = [];
-
-  console.log('🔧 Creating peer connection...');
-  this.peerConnection = new RTCPeerConnection(this.configuration);
-
-  // ... rest of the code
-}
 
   async createAndSendOffer() {
-  if (!this.peerConnection) {
-    console.error('❌ Peer connection not initialized');
-    return;
-  }
+    if (!this.peerConnection) {
+      console.error('❌ Peer connection not initialized');
+      return;
+    }
 
-  // ✅ If we already have remote description, don't create offer
-  if (this.peerConnection.remoteDescription) {
-    console.log('⚠️ Already have remote description, not creating offer');
-    return;
-  }
-
-  try {
     console.log('📤 Creating offer...');
-    const offer = await this.peerConnection.createOffer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: true
-    });
+    const offer = await this.peerConnection.createOffer();
     await this.peerConnection.setLocalDescription(offer);
     await this.waitForIceGathering();
     
     console.log('📤 Sending offer...');
-    await this.safeInvoke('SendOffer', this.RoomId, this.localSdp);
+    await this.signalR.invoke('SendOffer', this.RoomId, this.localSdp);
     console.log('✅ Offer sent');
-  } catch (error) {
-    console.error('Error creating offer:', error);
-    throw error;
   }
-}
 
   async createAndSendAnswer(remoteSdp: string) {
-  // Prevent multiple simultaneous processing
-  if (this.isProcessingOffer) {
-    console.log('⚠️ Already processing an offer, ignoring duplicate');
-    return;
-  }
-
-  if (!this.peerConnection) {
-    console.error('❌ Peer connection not initialized');
-    return;
-  }
-
-  this.isProcessingOffer = true;
-
-  try {
-    // ✅ If remote description already exists, DON'T recreate - just update
-    if (this.peerConnection.remoteDescription) {
-      console.log('⚠️ Remote description already set, updating...');
-      const remoteDesc = JSON.parse(remoteSdp);
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-      this.isProcessingOffer = false;
+    if (!this.peerConnection) {
+      console.error('❌ Peer connection not initialized');
       return;
     }
 
@@ -267,63 +259,25 @@ export class WebRTCService {
     await this.waitForIceGathering();
     
     console.log('📤 Sending answer...');
-    await this.safeInvoke('SendAnswer', this.RoomId, this.localSdp);
+    await this.signalR.invoke('SendAnswer', this.RoomId, this.localSdp);
     console.log('✅ Answer sent');
-  } catch (error) {
-    console.error('Error creating answer:', error);
-  } finally {
-    this.isProcessingOffer = false;
   }
-}
 
   async setRemoteDescription(sdp: string) {
-  if (!this.peerConnection) {
-    console.error('❌ Peer connection not initialized');
-    return;
-  }
-  
-  // ✅ If already have remote description, just return
-  if (this.peerConnection.remoteDescription) {
-    console.log('⚠️ Remote description already set, ignoring');
-    return;
-  }
-  
-  console.log('📥 Setting remote description...');
-  const remoteDesc = JSON.parse(sdp);
-  await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-  console.log('✅ Remote description set');
-  
-  // Add any pending candidates
-  if (this.pendingCandidates.length > 0) {
-    console.log(`📥 Adding ${this.pendingCandidates.length} pending candidates...`);
-    for (const candidate of this.pendingCandidates) {
-      try {
-        await this.peerConnection.addIceCandidate(candidate);
-        console.log('✅ Pending candidate added');
-      } catch (error) {
-        console.error('❌ Error adding pending candidate:', error);
-      }
-    }
-    this.pendingCandidates = [];
-  }
-}
-
-  async addIceCandidate(candidate: string) {
     if (!this.peerConnection) {
       console.error('❌ Peer connection not initialized');
       return;
     }
     
-    // If no remote description, store candidate for later
-    if (!this.peerConnection.remoteDescription) {
-      console.log('📦 Storing candidate for later...');
-      try {
-        const candidateObj = JSON.parse(candidate);
-        this.pendingCandidates.push(new RTCIceCandidate(candidateObj));
-        console.log(`📦 Stored candidate (total: ${this.pendingCandidates.length})`);
-      } catch (error) {
-        console.error('❌ Error parsing candidate:', error);
-      }
+    console.log('📥 Setting remote description...');
+    const remoteDesc = JSON.parse(sdp);
+    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+    console.log('✅ Remote description set');
+  }
+
+  async addIceCandidate(candidate: string) {
+    if (!this.peerConnection) {
+      console.error('❌ Peer connection not initialized');
       return;
     }
     
@@ -338,41 +292,18 @@ export class WebRTCService {
 
   private waitForIceGathering(): Promise<void> {
     return new Promise((resolve) => {
-      if (!this.peerConnection) {
-        resolve();
-        return;
-      }
-      
+      if (!this.peerConnection) { resolve(); return; }
       if (this.peerConnection.iceGatheringState === 'complete') {
         this.localSdp = JSON.stringify(this.peerConnection.localDescription);
         resolve();
-        return;
-      }
-      
-      const existingHandler = this.peerConnection.onicecandidate;
-      
-      const iceHandler = (event: RTCPeerConnectionIceEvent) => {
-        if (event.candidate === null) {
-          this.localSdp = JSON.stringify(this.peerConnection!.localDescription);
-          
-          if (existingHandler) {
-            this.peerConnection!.onicecandidate = existingHandler;
-          } else {
-            this.peerConnection!.onicecandidate = null;
+      } else {
+        this.peerConnection.onicecandidate = (event) => {
+          if (event.candidate === null) {
+            this.localSdp = JSON.stringify(this.peerConnection!.localDescription);
+            resolve();
           }
-          
-          resolve();
-        }
-      };
-      
-      this.peerConnection.onicecandidate = iceHandler;
-      
-      setTimeout(() => {
-        if (this.peerConnection) {
-          this.localSdp = JSON.stringify(this.peerConnection.localDescription);
-          resolve();
-        }
-      }, 5000);
+        };
+      }
     });
   }
 
@@ -380,7 +311,7 @@ export class WebRTCService {
   // CLEANUP
   // ─────────────────────────────────────────────────────────────
 
-  public cleanupPeerConnection() {
+  private cleanupPeerConnection() {
     if (this.peerConnection) {
       this.peerConnection.close();
       this.peerConnection = null;
@@ -388,8 +319,6 @@ export class WebRTCService {
     this.localSdp = '';
     this.remoteSdp = '';
     this.remoteStream = null;
-    this.isProcessingOffer = false;
-    this.pendingCandidates = [];
   }
 
   private cleanup() {
