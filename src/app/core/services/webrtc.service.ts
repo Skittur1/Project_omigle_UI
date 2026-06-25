@@ -348,7 +348,7 @@ export class WebRTCService {
   // CLEANUP
   // ─────────────────────────────────────────────────────────────
 
-  private cleanupPeerConnection() {
+  public cleanupPeerConnection() {
     if (this.peerConnection) {
       this.peerConnection.close();
       this.peerConnection = null;

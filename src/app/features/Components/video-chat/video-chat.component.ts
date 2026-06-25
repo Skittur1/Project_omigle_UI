@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SignalRService } from '../../../core/services/signal-r.service';
+import { WebRTCService } from '../../../core/services/webrtc.service';
 
 @Component({
   selector: 'app-video-chat',
@@ -59,7 +60,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     }
   ]
 };
-  constructor(private signalR: SignalRService) {}
+  constructor(private signalR: SignalRService,private webrtc:WebRTCService) {}
 
   async ngOnInit() {
     try {
@@ -427,5 +428,47 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     console.error('❌ Error adding ICE candidate:', error);
   }
 }
+  async startVideoChat() {
+    if (!this.userName || this.userName.trim() === '') {
+      this.errorMessage = 'Please enter your name first';
+      return;
+    }
+
+    try {
+      this.errorMessage = '';
+      this.isConnecting = true;
+      this.isInCall = true;
+      this.remoteStreamAvailable = false;
+
+      await this.ensureCameraAndPeerConnection();
+
+      // const connected = await this.signalR.waitUntilConnected(10, 500);
+      // if (!connected) {
+      //   throw new Error('SignalR not connected');
+      // }
+
+      await this.signalR.invokeWithoutParams('FindPartner');
+      console.log('🔎 Finding partner...');
+    } catch (error: any) {
+      console.error('❌ Error starting video chat:', error);
+      this.errorMessage = error.message || 'Failed to start video chat';
+      this.isConnecting = false;
+      this.isInCall = false;
+      this.webrtc.cleanupPeerConnection();
+    }
+  }
+
+  async endCall() {
+    try {
+      await this.webrtc.endCall();
+    } catch (error) {
+      console.error('Error ending call:', error);
+    }
+
+    this.isInCall = false;
+    this.isConnecting = false;
+    this.remoteStreamAvailable = false;
+    this.errorMessage = '';
+  }
  
 }
