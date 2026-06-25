@@ -263,102 +263,108 @@ export class WebRTCService {
   }
 
   async createAndSendOffer() {
-    if (!this.peerConnection) {
-      console.error('❌ Peer connection not initialized');
-      return;
-    }
-
-    try {
-      console.log('📤 Creating offer...');
-      const offer = await this.peerConnection.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true
-      });
-      await this.peerConnection.setLocalDescription(offer);
-      await this.waitForIceGathering();
-      
-      console.log('📤 Sending offer...');
-      await this.safeInvoke('SendOffer', this.RoomId, this.localSdp);
-      console.log('✅ Offer sent');
-    } catch (error) {
-      console.error('Error creating offer:', error);
-      throw error;
-    }
+  if (!this.peerConnection) {
+    console.error('❌ Peer connection not initialized');
+    return;
   }
+
+  // ✅ If we already have remote description, don't create offer
+  if (this.peerConnection.remoteDescription) {
+    console.log('⚠️ Already have remote description, not creating offer');
+    return;
+  }
+
+  try {
+    console.log('📤 Creating offer...');
+    const offer = await this.peerConnection.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true
+    });
+    await this.peerConnection.setLocalDescription(offer);
+    await this.waitForIceGathering();
+    
+    console.log('📤 Sending offer...');
+    await this.safeInvoke('SendOffer', this.RoomId, this.localSdp);
+    console.log('✅ Offer sent');
+  } catch (error) {
+    console.error('Error creating offer:', error);
+    throw error;
+  }
+}
 
   async createAndSendAnswer(remoteSdp: string) {
-    // Prevent multiple simultaneous processing
-    if (this.isProcessingOffer) {
-      console.log('⚠️ Already processing an offer, ignoring duplicate');
-      return;
-    }
+  // Prevent multiple simultaneous processing
+  if (this.isProcessingOffer) {
+    console.log('⚠️ Already processing an offer, ignoring duplicate');
+    return;
+  }
 
-    if (!this.peerConnection) {
-      console.error('❌ Peer connection not initialized');
-      return;
-    }
+  if (!this.peerConnection) {
+    console.error('❌ Peer connection not initialized');
+    return;
+  }
 
-    this.isProcessingOffer = true;
+  this.isProcessingOffer = true;
 
-    try {
-      // If remote description already exists, just update
-      if (this.peerConnection.remoteDescription) {
-        console.log('⚠️ Remote description already set, updating...');
-        const remoteDesc = JSON.parse(remoteSdp);
-        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-        this.isProcessingOffer = false;
-        return;
-      }
-
-      console.log('📥 Creating answer...');
+  try {
+    // ✅ If remote description already exists, DON'T recreate - just update
+    if (this.peerConnection.remoteDescription) {
+      console.log('⚠️ Remote description already set, updating...');
       const remoteDesc = JSON.parse(remoteSdp);
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-      
-      const answer = await this.peerConnection.createAnswer();
-      await this.peerConnection.setLocalDescription(answer);
-      await this.waitForIceGathering();
-      
-      console.log('📤 Sending answer...');
-      await this.safeInvoke('SendAnswer', this.RoomId, this.localSdp);
-      console.log('✅ Answer sent');
-    } catch (error) {
-      console.error('Error creating answer:', error);
-    } finally {
       this.isProcessingOffer = false;
+      return;
     }
+
+    console.log('📥 Creating answer...');
+    const remoteDesc = JSON.parse(remoteSdp);
+    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+    
+    const answer = await this.peerConnection.createAnswer();
+    await this.peerConnection.setLocalDescription(answer);
+    await this.waitForIceGathering();
+    
+    console.log('📤 Sending answer...');
+    await this.safeInvoke('SendAnswer', this.RoomId, this.localSdp);
+    console.log('✅ Answer sent');
+  } catch (error) {
+    console.error('Error creating answer:', error);
+  } finally {
+    this.isProcessingOffer = false;
   }
+}
 
   async setRemoteDescription(sdp: string) {
-    if (!this.peerConnection) {
-      console.error('❌ Peer connection not initialized');
-      return;
-    }
-    
-    // Don't set if already have remote description
-    if (this.peerConnection.remoteDescription) {
-      console.log('⚠️ Remote description already set, ignoring');
-      return;
-    }
-    
-    console.log('📥 Setting remote description...');
-    const remoteDesc = JSON.parse(sdp);
-    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-    console.log('✅ Remote description set');
-    
-    // Add any pending candidates
-    if (this.pendingCandidates.length > 0) {
-      console.log(`📥 Adding ${this.pendingCandidates.length} pending candidates...`);
-      for (const candidate of this.pendingCandidates) {
-        try {
-          await this.peerConnection.addIceCandidate(candidate);
-          console.log('✅ Pending candidate added');
-        } catch (error) {
-          console.error('❌ Error adding pending candidate:', error);
-        }
-      }
-      this.pendingCandidates = [];
-    }
+  if (!this.peerConnection) {
+    console.error('❌ Peer connection not initialized');
+    return;
   }
+  
+  // ✅ If already have remote description, just return
+  if (this.peerConnection.remoteDescription) {
+    console.log('⚠️ Remote description already set, ignoring');
+    return;
+  }
+  
+  console.log('📥 Setting remote description...');
+  const remoteDesc = JSON.parse(sdp);
+  await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+  console.log('✅ Remote description set');
+  
+  // Add any pending candidates
+  if (this.pendingCandidates.length > 0) {
+    console.log(`📥 Adding ${this.pendingCandidates.length} pending candidates...`);
+    for (const candidate of this.pendingCandidates) {
+      try {
+        await this.peerConnection.addIceCandidate(candidate);
+        console.log('✅ Pending candidate added');
+      } catch (error) {
+        console.error('❌ Error adding pending candidate:', error);
+      }
+    }
+    this.pendingCandidates = [];
+  }
+}
 
   async addIceCandidate(candidate: string) {
     if (!this.peerConnection) {

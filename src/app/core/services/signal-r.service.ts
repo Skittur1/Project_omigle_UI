@@ -1,16 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Subject,BehaviorSubject } from 'rxjs';
-
-
-// ─────────────────────────────────────────────────────────────
-// Real SignalR Service — connects to the .NET backend over the
-// network so two different devices can be matched and exchange
-// WebRTC signaling data.
-//
-// ⚠️  If accessing from another device on the LAN, change
-//     connectionUrl below to your host machine's network IP,
-//     e.g. 'http://192.168.1.10:5001/chatHub'
-// ─────────────────────────────────────────────────────────────
+import { Subject, BehaviorSubject } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 
 @Injectable({
@@ -18,68 +7,87 @@ import * as signalR from '@microsoft/signalr';
 })
 export class SignalRService {
   private hubConnection!: signalR.HubConnection;
-  // Change 'localhost' to your PC's LAN IP when testing from another device
   private connectionUrl = 'http://138.252.100.148:8126/hub/v1';
-
- 
+  private keepAliveInterval: any;
 
   async startConnection() {
     if (this.hubConnection && this.hubConnection.state !== signalR.HubConnectionState.Disconnected) {
       return;
     } 
     
-      this.hubConnection = new signalR.HubConnectionBuilder()
-        .withUrl(this.connectionUrl)
-        .withAutomaticReconnect()
-        .configureLogging(signalR.LogLevel.Information)
-        .build();
+    this.hubConnection = new signalR.HubConnectionBuilder()
+      .withUrl(this.connectionUrl)
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Information)
+      .build();
 
-     
-      await this.hubConnection.start();
+    this.hubConnection.onclose(() => {
+      console.log('Disconnected from SignalR hub');
+      this.stopKeepAlive();
+    });
 
-      // this.hubConnection.onreconnected(() => {
-      //   console.log('Reconnected to SignalR hub');
-      // });
+    this.hubConnection.onreconnected(() => {
+      console.log('Reconnected to SignalR hub');
+      this.startKeepAlive();
+    });
 
-      this.hubConnection.onclose(() => {
-        console.log('Disconnected from SignalR hub');
-      }); 
-      console.log('SignalR connection established');
-     
+    await this.hubConnection.start();
+    console.log('SignalR connection established');
+    this.startKeepAlive();
   }
 
+  // ✅ Add keep-alive to prevent server timeout
+  private startKeepAlive() {
+    this.stopKeepAlive();
+    this.keepAliveInterval = setInterval(() => {
+      if (this.isConnected()) {
+        // Send a ping to keep connection alive
+        this.invoke('Ping').catch(() => {});
+      }
+    }, 15000); // Send every 15 seconds
+  }
 
+  private stopKeepAlive() {
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
+    }
+  }
 
-  ConnectionOn(MethodName: string, callback: any  ){
-       this.hubConnection.on(MethodName,callback);
+  ConnectionOn(MethodName: string, callback: any) {
+    if (!this.hubConnection) {
+      console.warn('Hub connection not initialized');
+      return;
+    }
+    this.hubConnection.on(MethodName, callback);
   }
 
   connectionOff(MethodName: string) {
-    this.hubConnection.off(MethodName);
+    if (this.hubConnection) {
+      this.hubConnection.off(MethodName);
+    }
   }
- 
- async invokeWithoutParams<T>(methodName: string): Promise<T> {
+
+  async invokeWithoutParams<T>(methodName: string): Promise<T> {
     if (!this.hubConnection) {
-      throw new Error('Hub connection not initialized');}
-      return await this.hubConnection.invoke<T>(methodName);
-    
-
+      throw new Error('Hub connection not initialized');
+    }
+    return await this.hubConnection.invoke<T>(methodName);
   }
 
-  async invoke<T>(methodName: string, roomid?: any,sdp?:any): Promise<T>{
+  async invoke<T>(methodName: string, roomid?: any, sdp?: any): Promise<T> {
     if (!this.hubConnection) {
       throw new Error('Hub connection not initialized');
     }
     return await this.hubConnection.invoke<T>(methodName, roomid, sdp);
   }
+
   isConnected(): boolean {
-  return this.hubConnection?.state === signalR.HubConnectionState.Connected;
-}
-
-  
-
+    return this.hubConnection?.state === signalR.HubConnectionState.Connected;
+  }
 
   async disconnect() {
+    this.stopKeepAlive();
     if (this.hubConnection) {
       await this.hubConnection.stop();
     }
