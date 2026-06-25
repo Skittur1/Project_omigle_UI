@@ -136,22 +136,30 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   }
 
   async startVideoChat() {
+  try {
+    this.isConnecting = true;
+    this.isInCall = true;
+    this.errorMessage = '';
+    
+    await this.webrtc.startCamera();
+    this.webrtc.createPeerConnection1();
+    
     try {
-      this.isConnecting = true;
-      this.isInCall = true;
-      this.errorMessage = '';
-      
-      await this.webrtc.startCamera();
-      this.webrtc.createPeerConnection1();
       await this.signalR.invokeWithoutParams('FindPartner');
-      
-    } catch (error: any) {
-      console.error('❌ Error:', error);
-      this.errorMessage = error.message || 'Failed to start';
-      this.isConnecting = false;
-      this.webrtc.endCall();
+    } catch (error) {
+      // If failed, wait 1 second and try once more
+      console.log('Retrying FindPartner...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await this.signalR.invokeWithoutParams('FindPartner');
     }
+    
+  } catch (error: any) {
+    console.error('❌ Error:', error);
+    this.errorMessage = error.message || 'Failed to start';
+    this.isConnecting = false;
+    this.webrtc.endCall();
   }
+}
 
   async endCall() {
     await this.webrtc.endCall();
