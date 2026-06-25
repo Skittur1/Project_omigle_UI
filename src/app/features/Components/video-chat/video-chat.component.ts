@@ -32,13 +32,33 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   @ViewChild('localVideo') localVideo!: ElementRef<HTMLVideoElement>;
   @ViewChild('remoteVideo') remoteVideo!: ElementRef<HTMLVideoElement>;
 
-  configuration: RTCConfiguration = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
-  };
-
+ configuration: RTCConfiguration = {
+  iceServers: [
+    {
+      urls: 'stun:stun.relay.metered.ca:80'
+    },
+    {
+      urls: 'turn:standard.relay.metered.ca:80',
+      username: '10fb06edf58626673cfcf637',
+      credential: 'V4WfGmTQAcs20RmA'
+    },
+    {
+      urls: 'turn:standard.relay.metered.ca:80?transport=tcp',
+      username: '10fb06edf58626673cfcf637',
+      credential: 'V4WfGmTQAcs20RmA'
+    },
+    {
+      urls: 'turn:standard.relay.metered.ca:443',
+      username: '10fb06edf58626673cfcf637',
+      credential: 'V4WfGmTQAcs20RmA'
+    },
+    {
+      urls: 'turns:standard.relay.metered.ca:443?transport=tcp',
+      username: '10fb06edf58626673cfcf637',
+      credential: 'V4WfGmTQAcs20RmA'
+    }
+  ]
+};
   constructor(private signalR: SignalRService) {}
 
   async ngOnInit() {
