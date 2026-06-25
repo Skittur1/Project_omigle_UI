@@ -74,83 +74,86 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.cleanupSignalREvents();
     this.cleanup();
     this.signalR.disconnect();
   }
 
   private setupSignalREvents() {
-    this.signalR.ConnectionOn('StartCall', async (roomId: string) => {
-      console.log('🎯 Initiator:', roomId);
-      this.RoomId = roomId;
-      await this.createAndSendOffer();
-    });
+  this.signalR.ConnectionOn('StartCall', async (roomId: string) => {
+    console.log('🎯 Initiator:', roomId);
+    this.RoomId = roomId;
+    this.isInCall = true;
+    this.isConnecting = true;
+    this.errorMessage = '';
 
-    this.signalR.ConnectionOn('Waiting', () => {
-      console.log('⏳ Waiting...');
-      // Keep call UI visible and show connecting state while waiting for partner
-      this.isInCall = true;
-      this.isConnecting = true;
-    });
+    await this.createAndSendOffer();
+  });
 
-    this.signalR.ConnectionOn('IncomingCall', async (roomId: string) => {
-      console.log('📞 Incoming:', roomId);
-      this.RoomId = roomId;
-      this.isConnecting = false;
-      // Show call UI first so ViewChild video elements are available
-      this.isInCall = true;
-      // ✅ Start camera and show local video
-      await this.startCamera1();
-      this.createPeerConnection1();
-    });
+  this.signalR.ConnectionOn('ReceiveIceCandidate', async (candidate: string) => {
+    console.log('🧊 Received ICE candidate');
 
-    this.signalR.ConnectionOn('ReceiveOffer', async (sdp: string) => {
-      console.log('📥 Received offer');
-      await this.createAndSendAnswer(sdp);
-    });
-
-    this.signalR.ConnectionOn('ReceiveAnswer', async (sdp: string) => {
-      console.log('📥 Received answer');
-      await this.setRemoteDescription(sdp);
-    });
-
-    this.signalR.ConnectionOn('Error', (code: string, msg: string) => {
-      console.error('❌ Error:', code, msg);
-      this.errorMessage = msg;
-      this.isConnecting = false;
-    });
-  }
-
-  async startVideoChat() {
     try {
-      // Show call UI and spinner while we get local camera and look for a partner
-      this.isConnecting = true;
-      this.isInCall = true;
-      this.errorMessage = '';
-      
-      await this.startCamera1();
-      this.createPeerConnection1();
-      await this.signalR.invokeWithoutParams('FindPartner');
-      
-    } catch (error: any) {
-      console.error('❌ Error:', error);
-      this.errorMessage = error.message || 'Failed to start';
-      this.isConnecting = false;
-      this.cleanup();
+      await this.addIceCandidate(candidate);
+    } catch (error) {
+      console.error('Error handling ICE candidate:', error);
     }
-  }
+  });
 
-  async endCall() {
-    if (this.RoomId) {
-      await this.signalR.invoke('Cancel', this.RoomId);
+  this.signalR.ConnectionOn('Waiting', () => {
+    console.log('⏳ Waiting...');
+    this.isInCall = true;
+    this.isConnecting = true;
+  });
+
+  this.signalR.ConnectionOn('IncomingCall', async (roomId: string) => {
+    console.log('📞 Incoming:', roomId);
+    this.RoomId = roomId;
+    this.isInCall = true;
+    this.isConnecting = true;
+    this.errorMessage = '';
+     try {
+    await this.ensureCameraAndPeerConnection();
+    } catch (error) {
+      console.error('Error in IncomingCall:', error);
+      this.isConnecting = false;
+      this.errorMessage = 'Failed to prepare incoming call';
     }
-    this.cleanup();
-  }
+    
+
+    // await this.startCamera1();
+    await this.ensureCameraAndPeerConnection();
+    // this.createPeerConnection1();
+    await this.signalR.invokeWithoutParams('FindPartner');
+  });
+
+  this.signalR.ConnectionOn('ReceiveOffer', async (sdp: string) => {
+    console.log('📥 Received offer');
+    await this.ensureCameraAndPeerConnection();
+    await this.createAndSendAnswer(sdp);
+  });
+
+  this.signalR.ConnectionOn('ReceiveAnswer', async (sdp: string) => {
+    console.log('📥 Received answer');
+    await this.setRemoteDescription(sdp);
+  });
+
+  this.signalR.ConnectionOn('Error', (code: string, msg: string) => {
+    console.error('❌ Error:', code, msg);
+    this.errorMessage = msg;
+    this.isConnecting = false;
+  });
+}
 
   async skipPartner() {
     if (this.RoomId) {
       this.isConnecting = true;
+      this.remoteStreamAvailable = false;
       await this.signalR.invoke('Next', this.RoomId);
       this.cleanupPeerConnection();
+      if (this.localStream) {
+      this.createPeerConnection1();
+    }
     }
   }
 
@@ -236,6 +239,28 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   //     }
   //   };
   // }
+  private async ensureCameraAndPeerConnection() {
+  if (!this.localStream) {
+    await this.startCamera1();
+  }
+
+  if (!this.peerConnection) {
+    this.createPeerConnection1();
+    return;
+  }
+
+  const state = this.peerConnection.connectionState;
+  const signalingState = this.peerConnection.signalingState;
+
+  if (
+    state === 'closed' ||
+    state === 'failed' ||
+    signalingState === 'closed'
+  ) {
+    this.cleanupPeerConnection();
+    this.createPeerConnection1();
+  }
+}
 
   createPeerConnection1() {
   if (!this.localStream) {
@@ -276,12 +301,25 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     }
   };
 
-  this.peerConnection.onicecandidate = (event) => {
-    if (event.candidate === null && this.peerConnection) {
-      this.localSdp = JSON.stringify(this.peerConnection.localDescription);
-      console.log('✅ SDP ready');
+  this.peerConnection.onicecandidate = async (event) => {
+  if (event.candidate && this.RoomId) {
+    try {
+      console.log('📤 Sending ICE candidate');
+      await this.signalR.invoke(
+        'SendIceCandidate',
+        this.RoomId,
+        JSON.stringify(event.candidate)
+      );
+    } catch (error) {
+      console.error('❌ Error sending ICE candidate:', error);
     }
-  };
+  }
+
+  if (event.candidate === null && this.peerConnection) {
+    this.localSdp = JSON.stringify(this.peerConnection.localDescription);
+    console.log('✅ SDP ready');
+  }
+};
 
   this.peerConnection.onconnectionstatechange = () => {
     if (this.peerConnection?.connectionState === 'connected') {
@@ -340,7 +378,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     });
   }
 
-  private cleanupPeerConnection() {
+   cleanupPeerConnection() {
     if (this.peerConnection) {
       this.peerConnection.close();
       this.peerConnection = null;
@@ -366,4 +404,28 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     this.isConnecting = false;
     this.RoomId = '';
   }
+  private cleanupSignalREvents() {
+  this.signalR.connectionOff('StartCall');
+  this.signalR.connectionOff('Waiting');
+  this.signalR.connectionOff('IncomingCall');
+  this.signalR.connectionOff('ReceiveOffer');
+  this.signalR.connectionOff('ReceiveAnswer');
+  this.signalR.connectionOff('ReceiveIceCandidate');
+  this.signalR.connectionOff('Error');
+} 
+ async addIceCandidate(candidate: string) {
+  if (!this.peerConnection) {
+    console.error('❌ Peer connection not initialized');
+    return;
+  }
+
+  try {
+    const candidateObj = JSON.parse(candidate);
+    await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidateObj));
+    console.log('✅ ICE candidate added');
+  } catch (error) {
+    console.error('❌ Error adding ICE candidate:', error);
+  }
+}
+ 
 }
