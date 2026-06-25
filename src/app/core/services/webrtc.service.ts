@@ -69,11 +69,14 @@ export class WebRTCService {
 
     this.signalR.ConnectionOn('ReceiveOffer', async (sdp: string) => {
       console.log('📥 Received offer');
+      console.log('📥 OFFER SDP FROM SIGNALR:', sdp);
       await this.createAndSendAnswer(sdp);
     });
 
     this.signalR.ConnectionOn('ReceiveAnswer', async (sdp: string) => {
       console.log('📥 Received answer');
+       console.log('📥 Received answer event');
+      console.log('📥 ANSWER SDP FROM SIGNALR:', sdp);
       await this.setRemoteDescription(sdp);
     });
 
@@ -189,6 +192,8 @@ export class WebRTCService {
     // Handle ICE candidates
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log('🧊 ICE Candidate object:', event.candidate);
+        console.log('🧊 ICE Candidate JSON:', JSON.stringify(event.candidate));
         console.log('🧊 ICE Candidate:', event.candidate.type);
         // Send ICE candidate to partner
         this.signalR.invoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate))
@@ -236,6 +241,8 @@ export class WebRTCService {
 
     console.log('📤 Creating offer...');
     const offer = await this.peerConnection.createOffer();
+    console.log('  OFFER :', offer);
+    console.log(' OFFER SDP :', offer.sdp);
     await this.peerConnection.setLocalDescription(offer);
     await this.waitForIceGathering();
     
@@ -249,12 +256,16 @@ export class WebRTCService {
       console.error('❌ Peer connection not initialized');
       return;
     }
+    console.log(' Remote offer SDP received from server:');
+    console.log(remoteSdp);
 
     console.log('📥 Creating answer...');
     const remoteDesc = JSON.parse(remoteSdp);
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
     
     const answer = await this.peerConnection.createAnswer();
+    console.log('RAW ANSWER OBJECT:', answer);
+    console.log('ANSWER SDP STRING:', answer.sdp);
     await this.peerConnection.setLocalDescription(answer);
     await this.waitForIceGathering();
     
@@ -270,9 +281,11 @@ export class WebRTCService {
     }
     
     console.log('📥 Setting remote description...');
+    console.log(sdp);
     const remoteDesc = JSON.parse(sdp);
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
     console.log('✅ Remote description set');
+    console.log(' Remote description set successfully:', this.peerConnection.remoteDescription);
   }
 
   async addIceCandidate(candidate: string) {

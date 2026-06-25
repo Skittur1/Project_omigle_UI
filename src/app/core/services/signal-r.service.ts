@@ -24,6 +24,9 @@ export class SignalRService {
  
 
   async startConnection() {
+    if (this.hubConnection && this.hubConnection.state !== signalR.HubConnectionState.Disconnected) {
+      return;
+    } 
     
       this.hubConnection = new signalR.HubConnectionBuilder()
         .withUrl(this.connectionUrl)
@@ -47,7 +50,7 @@ export class SignalRService {
 
 
 
-  ConnectionOn(MethodName: string, callback: (roomid:any,sdp:any  ) => void) {
+  ConnectionOn(MethodName: string, callback: any  ){
        this.hubConnection.on(MethodName,callback);
   }
 
@@ -55,19 +58,22 @@ export class SignalRService {
     this.hubConnection.off(MethodName);
   }
  
- async invokeWithoutParams<T>(methodName: string){
-    if (this.hubConnection) {
-      this.hubConnection.invoke<T>(methodName);
-    }
+ async invokeWithoutParams<T>(methodName: string): Promise<T> {
+    if (!this.hubConnection) {
+      throw new Error('Hub connection not initialized');}
+      return await this.hubConnection.invoke<T>(methodName);
+    
 
   }
 
-  async invoke<T>(methodName: string, roomid?: any,sdp?:any){
-    if (this.hubConnection) {
-      this.hubConnection.invoke<T>(methodName, roomid, sdp);
+  async invoke<T>(methodName: string, roomid?: any,sdp?:any): Promise<T>{
+    if (!this.hubConnection) {
+      throw new Error('Hub connection not initialized');
     }
-
+    return await this.hubConnection.invoke<T>(methodName, roomid, sdp);
   }
+
+  
 
 
   async disconnect() {
