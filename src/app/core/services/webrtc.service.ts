@@ -47,7 +47,7 @@ export class WebRTCService {
         credential: "V4WfGmTQAcs20RmA",
       },
   
-    ]
+    ],
   };
 
   constructor(private signalR: SignalRService) {
