@@ -265,73 +265,79 @@ export class WebRTCService {
   }
 
   async createAndSendAnswer(remoteSdp: string) {
-    if (!this.peerConnection) {
-      console.error('❌ Peer connection not initialized');
-      return;
-    }
-
-    try {
-      // ✅ Check if already has remote description
-      if (this.peerConnection.remoteDescription) {
-        console.log('⚠️ Remote description already set, ignoring duplicate answer');
-        return;
-      }
-
-      console.log('📥 Creating answer...');
-      const remoteDesc = JSON.parse(remoteSdp);
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-      
-      const answer = await this.peerConnection.createAnswer();
-      await this.peerConnection.setLocalDescription(answer);
-      await this.waitForIceGathering();
-      
-      console.log('📤 Sending answer...');
-      await this.safeInvoke('SendAnswer', this.RoomId, this.localSdp);
-      console.log('✅ Answer sent');
-    } catch (error) {
-      console.error('Error creating answer:', error);
-      throw error;
-    }
+  if (!this.peerConnection) {
+    console.error('❌ Peer connection not initialized');
+    return;
   }
+
+  try {
+    // ✅ If remote description already exists, recreate peer connection
+    if (this.peerConnection.remoteDescription) {
+      console.log('⚠️ Remote description already set, recreating peer connection...');
+      this.cleanupPeerConnection();
+      this.createPeerConnection1();
+    }
+
+    console.log('📥 Creating answer...');
+    const remoteDesc = JSON.parse(remoteSdp);
+    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+    
+    const answer = await this.peerConnection.createAnswer();
+    await this.peerConnection.setLocalDescription(answer);
+    await this.waitForIceGathering();
+    
+    console.log('📤 Sending answer...');
+    await this.safeInvoke('SendAnswer', this.RoomId, this.localSdp);
+    console.log('✅ Answer sent');
+  } catch (error) {
+    console.error('Error creating answer:', error);
+    throw error;
+  }
+}
 
   async setRemoteDescription(sdp: string) {
-    if (!this.peerConnection) {
-      console.error('❌ Peer connection not initialized');
-      return;
-    }
-    
-    // ✅ Check if already have remote description
-    if (this.peerConnection.remoteDescription) {
-      console.log('⚠️ Remote description already set, ignoring duplicate');
-      return;
-    }
-    
-    console.log('📥 Setting remote description...');
-    const remoteDesc = JSON.parse(sdp);
-    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-    console.log('✅ Remote description set');
+  if (!this.peerConnection) {
+    console.error('❌ Peer connection not initialized');
+    return;
   }
+  
+  // ✅ If remote description already exists, recreate peer connection
+  if (this.peerConnection.remoteDescription) {
+    console.log('⚠️ Remote description already set, recreating peer connection...');
+    this.cleanupPeerConnection();
+    this.createPeerConnection1();
+  }
+  
+  console.log('📥 Setting remote description...');
+  const remoteDesc = JSON.parse(sdp);
+  await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+  console.log('✅ Remote description set');
+}
 
   async addIceCandidate(candidate: string) {
-    if (!this.peerConnection) {
-      console.error('❌ Peer connection not initialized');
-      return;
-    }
-    
-    // ✅ Check if remote description exists
+  if (!this.peerConnection) {
+    console.error('❌ Peer connection not initialized');
+    return;
+  }
+  
+  if (!this.peerConnection.remoteDescription) {
+    console.log('⚠️ Remote description not set yet, waiting...');
+    // Wait a bit and retry
+    await new Promise(resolve => setTimeout(resolve, 1000));
     if (!this.peerConnection.remoteDescription) {
-      console.log('⚠️ Remote description not set yet, ignoring ICE candidate');
+      console.log('⚠️ Still no remote description, ignoring ICE candidate');
       return;
-    }
-    
-    try {
-      const candidateObj = JSON.parse(candidate);
-      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidateObj));
-      console.log('✅ ICE candidate added');
-    } catch (error) {
-      console.error('❌ Error adding ICE candidate:', error);
     }
   }
+  
+  try {
+    const candidateObj = JSON.parse(candidate);
+    await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidateObj));
+    console.log('✅ ICE candidate added');
+  } catch (error) {
+    console.error('❌ Error adding ICE candidate:', error);
+  }
+}
 
   private waitForIceGathering(): Promise<void> {
     return new Promise((resolve) => {
