@@ -107,7 +107,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       
       try {
         await this.webrtc.startCamera();
-        this.webrtc.createPeerConnection1();
+        // this.webrtc.createPeerConnection1();
         // Don't create offer here - wait for ReceiveOffer
       } catch (error) {
         console.error('Error in IncomingCall:', error);

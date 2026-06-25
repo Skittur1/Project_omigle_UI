@@ -177,90 +177,32 @@ export class WebRTCService {
   // ─────────────────────────────────────────────────────────────
 
   createPeerConnection1() {
-    if (!this.localStream) {
-      console.error('❌ Local stream not available');
+  if (!this.localStream) {
+    console.error('❌ Local stream not available');
+    return;
+  }
+
+  // ✅ If peer connection already exists and is stable, don't recreate
+  if (this.peerConnection) {
+    const state = this.peerConnection.connectionState;
+    if (state === 'connected' || state === 'connecting') {
+      console.log('⚠️ Peer connection already in use, skipping recreation');
       return;
     }
-
-    // Reset flags when creating new connection
-    this.isProcessingOffer = false;
-    this.pendingCandidates = [];
-
-    if (this.peerConnection) {
-      console.log('⚠️ Peer connection already exists, closing...');
-      this.peerConnection.close();
-      this.peerConnection = null;
-    }
-
-    console.log('🔧 Creating peer connection...');
-    this.peerConnection = new RTCPeerConnection(this.configuration);
-
-    this.localStream.getTracks().forEach(track => {
-      if (this.peerConnection) {
-        this.peerConnection.addTrack(track, this.localStream!);
-        console.log(`✅ Added ${track.kind} track`);
-      }
-    });
-
-    this.peerConnection.ontrack = (event) => {
-      console.log('🎥 Remote track received:', event.track.kind);
-      this.remoteStream = event.streams[0];
-      this.remoteStreamSubject.next(this.remoteStream);
-    };
-
-    // ✅ FIX: Send ICE candidates immediately when they're generated
-    this.peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('🧊 ICE Candidate:', event.candidate.type);
-        // Send immediately without waiting
-        this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate))
-          .catch(err => console.log('⚠️ Could not send ICE candidate:', err));
-      }
-      if (event.candidate === null && this.peerConnection) {
-        this.localSdp = JSON.stringify(this.peerConnection.localDescription);
-        console.log('✅ SDP ready');
-      }
-    };
-
-    this.peerConnection.oniceconnectionstatechange = () => {
-      const state = this.peerConnection?.iceConnectionState;
-      console.log('🧊 ICE State:', state);
-      
-      if (state === 'connected' || state === 'completed') {
-        console.log('✅ ICE connected successfully!');
-        this.connectionStateSubject.next('connected');
-      }
-      
-      if (state === 'failed') {
-        console.error('❌ ICE connection failed');
-        // Try to restart ICE
-        if (this.peerConnection) {
-          this.peerConnection.restartIce();
-          console.log('🔄 Restarting ICE...');
-        }
-        this.connectionStateSubject.next('failed');
-      }
-    };
-
-    this.peerConnection.onconnectionstatechange = () => {
-      const state = this.peerConnection?.connectionState;
-      console.log('🔌 Connection state:', state);
-      
-      if (state === 'connected') {
-        console.log('✅ Call connected!');
-        this.connectionStateSubject.next('connected');
-      }
-      
-      if (state === 'failed') {
-        console.error('❌ Connection failed');
-        // Try to restart
-        if (this.peerConnection) {
-          this.peerConnection.restartIce();
-          console.log('🔄 Restarting connection...');
-        }
-      }
-    };
+    console.log('⚠️ Peer connection exists but not connected, closing...');
+    this.peerConnection.close();
+    this.peerConnection = null;
   }
+
+  // Reset flags when creating new connection
+  this.isProcessingOffer = false;
+  this.pendingCandidates = [];
+
+  console.log('🔧 Creating peer connection...');
+  this.peerConnection = new RTCPeerConnection(this.configuration);
+
+  // ... rest of the code
+}
 
   async createAndSendOffer() {
   if (!this.peerConnection) {
