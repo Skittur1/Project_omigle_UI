@@ -19,7 +19,8 @@ export class WebRTCService {
   remoteStream: MediaStream | null = null;
   peerConnection: RTCPeerConnection | null = null;
   RoomId = '';
-
+  private isProcessingOffer = false;
+  private pendingCandidates: RTCIceCandidate[] = [];
   configuration: RTCConfiguration = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -88,6 +89,10 @@ export class WebRTCService {
   // ─────────────────────────────────────────────────────────────
 
   async startCamera() {
+    if (this.localStream) {
+    this.localStreamSubject.next(this.localStream);
+    return this.localStream;
+    }
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -245,10 +250,26 @@ export class WebRTCService {
   }
 
   async createAndSendAnswer(remoteSdp: string) {
-    if (!this.peerConnection) {
+        if (!this.peerConnection) {
       console.error('❌ Peer connection not initialized');
       return;
     }
+
+    if (this.isProcessingOffer) {
+      console.log('⚠️ Already processing offer, ignoring duplicate');
+      return;
+    }
+
+    if (this.peerConnection.remoteDescription) {
+      console.log('⚠️ Remote description already set, ignoring duplicate offer');
+      return;
+    }
+
+    this.isProcessingOffer = true;
+        if (!this.peerConnection) {
+          console.error('❌ Peer connection not initialized');
+          return;
+        }
 
     console.log('📥 Creating answer...');
     const remoteDesc = JSON.parse(remoteSdp);
@@ -268,6 +289,10 @@ export class WebRTCService {
       console.error('❌ Peer connection not initialized');
       return;
     }
+    if (this.peerConnection.remoteDescription) {
+    console.log('⚠️ Remote description already set, ignoring duplicate answer');
+    return;
+  }
     
     console.log('📥 Setting remote description...');
     const remoteDesc = JSON.parse(sdp);
@@ -283,7 +308,13 @@ export class WebRTCService {
     
     try {
       const candidateObj = JSON.parse(candidate);
-      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidateObj));
+      const iceCandidate = new RTCIceCandidate(candidateObj);
+       if (!this.peerConnection.remoteDescription) {
+        console.log('📦 Remote description not set yet, queueing ICE candidate');
+        this.pendingCandidates.push(iceCandidate);
+        return;
+      }
+      await this.peerConnection.addIceCandidate(iceCandidate);
       console.log('✅ ICE candidate added');
     } catch (error) {
       console.error('❌ Error adding ICE candidate:', error);
@@ -296,16 +327,22 @@ export class WebRTCService {
       if (this.peerConnection.iceGatheringState === 'complete') {
         this.localSdp = JSON.stringify(this.peerConnection.localDescription);
         resolve();
-      } else {
-        this.peerConnection.onicecandidate = (event) => {
-          if (event.candidate === null) {
-            this.localSdp = JSON.stringify(this.peerConnection!.localDescription);
-            resolve();
-          }
-        };
+        return;
+      } const checkState = () => {
+      if (!this.peerConnection) return;
+       if (this.peerConnection.iceGatheringState === 'complete') {
+        this.localSdp = JSON.stringify(this.peerConnection.localDescription);
+        this.peerConnection.removeEventListener(
+          'icegatheringstatechange',
+          checkState
+        );
+        resolve();
       }
-    });
-  }
+    };
+
+    this.peerConnection.addEventListener('icegatheringstatechange', checkState);
+  });
+}
 
   // ─────────────────────────────────────────────────────────────
   // CLEANUP
@@ -319,6 +356,8 @@ export class WebRTCService {
     this.localSdp = '';
     this.remoteSdp = '';
     this.remoteStream = null;
+    this.isProcessingOffer = false;
+    this.pendingCandidates = [];
   }
 
   private cleanup() {
@@ -329,4 +368,5 @@ export class WebRTCService {
     }
     this.RoomId = '';
   }
+  
 }
