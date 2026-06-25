@@ -20,29 +20,34 @@ export class WebRTCService {
   peerConnection: RTCPeerConnection | null = null;
   RoomId = '';
 
+  // UPDATED: New TURN configuration
   configuration: RTCConfiguration = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
+  iceServers: [
       {
-        urls: [
-          'turn:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:443',
-          'turn:openrelay.metered.ca:3478'
-        ],
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
+        urls: "stun:stun.relay.metered.ca:80",
       },
       {
-        urls: [
-          'turn:turn.anyfirewall.com:443?transport=tcp',
-          'turn:turn.anyfirewall.com:443?transport=udp'
-        ],
-        username: 'webrtc',
-        credential: 'webrtc'
-      }
-    ],
-    iceTransportPolicy: 'all'
+        urls: "turn:standard.relay.metered.ca:80",
+        username: "10fb06edf58626673cfcf637",
+        credential: "V4WfGmTQAcs20RmA",
+      },
+      {
+        urls: "turn:standard.relay.metered.ca:80?transport=tcp",
+        username: "10fb06edf58626673cfcf637",
+        credential: "V4WfGmTQAcs20RmA",
+      },
+      {
+        urls: "turn:standard.relay.metered.ca:443",
+        username: "10fb06edf58626673cfcf637",
+        credential: "V4WfGmTQAcs20RmA",
+      },
+      {
+        urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+        username: "10fb06edf58626673cfcf637",
+        credential: "V4WfGmTQAcs20RmA",
+      },
+  
+    ]
   };
 
   constructor(private signalR: SignalRService) {
@@ -63,7 +68,6 @@ export class WebRTCService {
     this.signalR.ConnectionOn('IncomingCall', async (roomId: string) => {
       console.log('📞 IncomingCall:', roomId);
       this.RoomId = roomId;
-      // Just signal that we're ready, camera should already be started
       this.createPeerConnection1();
     });
 
@@ -75,7 +79,7 @@ export class WebRTCService {
 
     this.signalR.ConnectionOn('ReceiveAnswer', async (sdp: string) => {
       console.log('📥 Received answer');
-       console.log('📥 Received answer event');
+      console.log('📥 Received answer event');
       console.log('📥 ANSWER SDP FROM SIGNALR:', sdp);
       await this.setRemoteDescription(sdp);
     });
@@ -239,16 +243,24 @@ export class WebRTCService {
       return;
     }
 
-    console.log('📤 Creating offer...');
-    const offer = await this.peerConnection.createOffer();
-    console.log('  OFFER :', offer);
-    console.log(' OFFER SDP :', offer.sdp);
-    await this.peerConnection.setLocalDescription(offer);
-    await this.waitForIceGathering();
-    
-    console.log('📤 Sending offer...');
-    await this.signalR.invoke('SendOffer', this.RoomId, this.localSdp);
-    console.log('✅ Offer sent');
+    try {
+      console.log('📤 Creating offer...');
+      const offer = await this.peerConnection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
+      console.log('  OFFER :', offer);
+      console.log(' OFFER SDP :', offer.sdp);
+      await this.peerConnection.setLocalDescription(offer);
+      await this.waitForIceGathering();
+      
+      console.log('📤 Sending offer...');
+      await this.signalR.invoke('SendOffer', this.RoomId, this.localSdp);
+      console.log('✅ Offer sent');
+    } catch (error) {
+      console.error('Error creating offer:', error);
+      throw error;
+    }
   }
 
   async createAndSendAnswer(remoteSdp: string) {
@@ -256,22 +268,28 @@ export class WebRTCService {
       console.error('❌ Peer connection not initialized');
       return;
     }
-    console.log(' Remote offer SDP received from server:');
-    console.log(remoteSdp);
 
-    console.log('📥 Creating answer...');
-    const remoteDesc = JSON.parse(remoteSdp);
-    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-    
-    const answer = await this.peerConnection.createAnswer();
-    console.log('RAW ANSWER OBJECT:', answer);
-    console.log('ANSWER SDP STRING:', answer.sdp);
-    await this.peerConnection.setLocalDescription(answer);
-    await this.waitForIceGathering();
-    
-    console.log('📤 Sending answer...');
-    await this.signalR.invoke('SendAnswer', this.RoomId, this.localSdp);
-    console.log('✅ Answer sent');
+    try {
+      console.log(' Remote offer SDP received from server:');
+      console.log(remoteSdp);
+
+      console.log('📥 Creating answer...');
+      const remoteDesc = JSON.parse(remoteSdp);
+      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+      
+      const answer = await this.peerConnection.createAnswer();
+      console.log('RAW ANSWER OBJECT:', answer);
+      console.log('ANSWER SDP STRING:', answer.sdp);
+      await this.peerConnection.setLocalDescription(answer);
+      await this.waitForIceGathering();
+      
+      console.log('📤 Sending answer...');
+      await this.signalR.invoke('SendAnswer', this.RoomId, this.localSdp);
+      console.log('✅ Answer sent');
+    } catch (error) {
+      console.error('Error creating answer:', error);
+      throw error;
+    }
   }
 
   async setRemoteDescription(sdp: string) {
@@ -303,20 +321,49 @@ export class WebRTCService {
     }
   }
 
+  // FIXED: Improved waitForIceGathering
   private waitForIceGathering(): Promise<void> {
     return new Promise((resolve) => {
-      if (!this.peerConnection) { resolve(); return; }
+      if (!this.peerConnection) {
+        resolve();
+        return;
+      }
+      
       if (this.peerConnection.iceGatheringState === 'complete') {
         this.localSdp = JSON.stringify(this.peerConnection.localDescription);
         resolve();
-      } else {
-        this.peerConnection.onicecandidate = (event) => {
-          if (event.candidate === null) {
-            this.localSdp = JSON.stringify(this.peerConnection!.localDescription);
-            resolve();
-          }
-        };
+        return;
       }
+      
+      // Store the current onicecandidate handler
+      const existingHandler = this.peerConnection.onicecandidate;
+      
+      // Set up a one-time handler for ICE gathering completion
+      const iceHandler = (event: RTCPeerConnectionIceEvent) => {
+        if (event.candidate === null) {
+          this.localSdp = JSON.stringify(this.peerConnection!.localDescription);
+          
+          // Restore the original handler if it exists
+          if (existingHandler) {
+            this.peerConnection!.onicecandidate = existingHandler;
+          } else {
+            // Remove our handler
+            this.peerConnection!.onicecandidate = null;
+          }
+          
+          resolve();
+        }
+      };
+      
+      this.peerConnection.onicecandidate = iceHandler;
+      
+      // Fallback timeout in case ICE gathering never completes
+      setTimeout(() => {
+        if (this.peerConnection) {
+          this.localSdp = JSON.stringify(this.peerConnection.localDescription);
+          resolve();
+        }
+      }, 5000);
     });
   }
 
@@ -324,7 +371,7 @@ export class WebRTCService {
   // CLEANUP
   // ─────────────────────────────────────────────────────────────
 
-  private cleanupPeerConnection() {
+  public cleanupPeerConnection() {
     if (this.peerConnection) {
       this.peerConnection.close();
       this.peerConnection = null;
