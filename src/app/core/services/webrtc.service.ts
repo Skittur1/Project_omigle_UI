@@ -53,17 +53,18 @@ export class WebRTCService {
   constructor(private signalR: SignalRService) {
     
   }
+  
   private async safeInvoke(method: string, roomId: string, data: any) {
-  if (!this.signalR.isConnected()) {
-    console.log('⏳ Waiting for connection...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    if (!this.signalR.isConnected()) {
+      console.log('⏳ Waiting for connection...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    await this.signalR.invoke(method, roomId, data);
   }
-  await this.signalR.invoke(method, roomId, data);
-}
+  
   public init() {
-  // Only set up events after SignalR is connected
-  this.setupSignalREvents();
-}
+    this.setupSignalREvents();
+  }
 
   // ─────────────────────────────────────────────────────────────
   // SETUP SIGNALR EVENTS
@@ -112,7 +113,6 @@ export class WebRTCService {
         audio: true
       });
       
-      // Emit local stream to component
       this.localStreamSubject.next(this.localStream);
       console.log('✅ Camera started');
       return this.localStream;
@@ -189,7 +189,6 @@ export class WebRTCService {
     console.log('🔧 Creating peer connection...');
     this.peerConnection = new RTCPeerConnection(this.configuration);
 
-    // Add local tracks
     this.localStream.getTracks().forEach(track => {
       if (this.peerConnection) {
         this.peerConnection.addTrack(track, this.localStream!);
@@ -197,21 +196,16 @@ export class WebRTCService {
       }
     });
 
-    // Handle remote tracks
     this.peerConnection.ontrack = (event) => {
       console.log('🎥 Remote track received:', event.track.kind);
       this.remoteStream = event.streams[0];
       this.remoteStreamSubject.next(this.remoteStream);
     };
 
-    // Handle ICE candidates
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('🧊 ICE Candidate object:', event.candidate);
-        console.log('🧊 ICE Candidate JSON:', JSON.stringify(event.candidate));
         console.log('🧊 ICE Candidate:', event.candidate.type);
-        // Send ICE candidate to partner
-this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate))
+        this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate))
           .catch(err => console.log('⚠️ Could not send ICE candidate:', err));
       }
       if (event.candidate === null && this.peerConnection) {
@@ -220,7 +214,6 @@ this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate)
       }
     };
 
-    // Monitor ICE connection state
     this.peerConnection.oniceconnectionstatechange = () => {
       const state = this.peerConnection?.iceConnectionState;
       console.log('🧊 ICE State:', state);
@@ -236,7 +229,6 @@ this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate)
       }
     };
 
-    // Monitor connection state
     this.peerConnection.onconnectionstatechange = () => {
       const state = this.peerConnection?.connectionState;
       console.log('🔌 Connection state:', state);
@@ -260,14 +252,11 @@ this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate)
         offerToReceiveAudio: true,
         offerToReceiveVideo: true
       });
-      console.log('  OFFER :', offer);
-      console.log(' OFFER SDP :', offer.sdp);
       await this.peerConnection.setLocalDescription(offer);
       await this.waitForIceGathering();
       
       console.log('📤 Sending offer...');
-    await this.safeInvoke('SendOffer', this.RoomId, this.localSdp);
-
+      await this.safeInvoke('SendOffer', this.RoomId, this.localSdp);
       console.log('✅ Offer sent');
     } catch (error) {
       console.error('Error creating offer:', error);
@@ -282,22 +271,22 @@ this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate)
     }
 
     try {
-      console.log(' Remote offer SDP received from server:');
-      console.log(remoteSdp);
+      // ✅ Check if already has remote description
+      if (this.peerConnection.remoteDescription) {
+        console.log('⚠️ Remote description already set, ignoring duplicate answer');
+        return;
+      }
 
       console.log('📥 Creating answer...');
       const remoteDesc = JSON.parse(remoteSdp);
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
       
       const answer = await this.peerConnection.createAnswer();
-      console.log('RAW ANSWER OBJECT:', answer);
-      console.log('ANSWER SDP STRING:', answer.sdp);
       await this.peerConnection.setLocalDescription(answer);
       await this.waitForIceGathering();
       
       console.log('📤 Sending answer...');
-     await this.safeInvoke('SendAnswer', this.RoomId, this.localSdp);
-
+      await this.safeInvoke('SendAnswer', this.RoomId, this.localSdp);
       console.log('✅ Answer sent');
     } catch (error) {
       console.error('Error creating answer:', error);
@@ -311,17 +300,27 @@ this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate)
       return;
     }
     
+    // ✅ Check if already have remote description
+    if (this.peerConnection.remoteDescription) {
+      console.log('⚠️ Remote description already set, ignoring duplicate');
+      return;
+    }
+    
     console.log('📥 Setting remote description...');
-    console.log(sdp);
     const remoteDesc = JSON.parse(sdp);
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
     console.log('✅ Remote description set');
-    console.log(' Remote description set successfully:', this.peerConnection.remoteDescription);
   }
 
   async addIceCandidate(candidate: string) {
     if (!this.peerConnection) {
       console.error('❌ Peer connection not initialized');
+      return;
+    }
+    
+    // ✅ Check if remote description exists
+    if (!this.peerConnection.remoteDescription) {
+      console.log('⚠️ Remote description not set yet, ignoring ICE candidate');
       return;
     }
     
@@ -334,7 +333,6 @@ this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate)
     }
   }
 
-  // FIXED: Improved waitForIceGathering
   private waitForIceGathering(): Promise<void> {
     return new Promise((resolve) => {
       if (!this.peerConnection) {
@@ -348,19 +346,15 @@ this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate)
         return;
       }
       
-      // Store the current onicecandidate handler
       const existingHandler = this.peerConnection.onicecandidate;
       
-      // Set up a one-time handler for ICE gathering completion
       const iceHandler = (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate === null) {
           this.localSdp = JSON.stringify(this.peerConnection!.localDescription);
           
-          // Restore the original handler if it exists
           if (existingHandler) {
             this.peerConnection!.onicecandidate = existingHandler;
           } else {
-            // Remove our handler
             this.peerConnection!.onicecandidate = null;
           }
           
@@ -370,7 +364,6 @@ this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate)
       
       this.peerConnection.onicecandidate = iceHandler;
       
-      // Fallback timeout in case ICE gathering never completes
       setTimeout(() => {
         if (this.peerConnection) {
           this.localSdp = JSON.stringify(this.peerConnection.localDescription);
