@@ -22,7 +22,7 @@ export class WebRTCService {
   
   // Flag to prevent duplicate processing
   private isProcessingOffer = false;
-  private isCaller = false; // Track if this user initiated the call
+  private pendingCandidates: RTCIceCandidate[] = [];
 
   configuration: RTCConfiguration = {
     iceServers: [
@@ -76,15 +76,12 @@ export class WebRTCService {
     this.signalR.ConnectionOn('StartCall', async (roomId: string) => {
       console.log('🎯 Initiator - StartCall:', roomId);
       this.RoomId = roomId;
-      this.isCaller = true;
       await this.createAndSendOffer();
     });
 
     this.signalR.ConnectionOn('IncomingCall', async (roomId: string) => {
       console.log('📞 IncomingCall:', roomId);
       this.RoomId = roomId;
-      this.isCaller = false;
-      // Create peer connection but don't create offer yet
       this.createPeerConnection1();
     });
 
@@ -131,7 +128,6 @@ export class WebRTCService {
     try {
       await this.startCamera();
       this.createPeerConnection1();
-      this.isCaller = true;
       await this.signalR.invokeWithoutParams('FindPartner');
       console.log('✅ Finding partner...');
     } catch (error) {
@@ -188,6 +184,7 @@ export class WebRTCService {
 
     // Reset flags when creating new connection
     this.isProcessingOffer = false;
+    this.pendingCandidates = [];
 
     if (this.peerConnection) {
       console.log('⚠️ Peer connection already exists, closing...');
@@ -211,9 +208,11 @@ export class WebRTCService {
       this.remoteStreamSubject.next(this.remoteStream);
     };
 
+    // ✅ FIX: Send ICE candidates immediately when they're generated
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
         console.log('🧊 ICE Candidate:', event.candidate.type);
+        // Send immediately without waiting
         this.safeInvoke('SendIceCandidate', this.RoomId, JSON.stringify(event.candidate))
           .catch(err => console.log('⚠️ Could not send ICE candidate:', err));
       }
@@ -234,6 +233,11 @@ export class WebRTCService {
       
       if (state === 'failed') {
         console.error('❌ ICE connection failed');
+        // Try to restart ICE
+        if (this.peerConnection) {
+          this.peerConnection.restartIce();
+          console.log('🔄 Restarting ICE...');
+        }
         this.connectionStateSubject.next('failed');
       }
     };
@@ -245,6 +249,15 @@ export class WebRTCService {
       if (state === 'connected') {
         console.log('✅ Call connected!');
         this.connectionStateSubject.next('connected');
+      }
+      
+      if (state === 'failed') {
+        console.error('❌ Connection failed');
+        // Try to restart
+        if (this.peerConnection) {
+          this.peerConnection.restartIce();
+          console.log('🔄 Restarting connection...');
+        }
       }
     };
   }
@@ -331,6 +344,20 @@ export class WebRTCService {
     const remoteDesc = JSON.parse(sdp);
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
     console.log('✅ Remote description set');
+    
+    // Add any pending candidates
+    if (this.pendingCandidates.length > 0) {
+      console.log(`📥 Adding ${this.pendingCandidates.length} pending candidates...`);
+      for (const candidate of this.pendingCandidates) {
+        try {
+          await this.peerConnection.addIceCandidate(candidate);
+          console.log('✅ Pending candidate added');
+        } catch (error) {
+          console.error('❌ Error adding pending candidate:', error);
+        }
+      }
+      this.pendingCandidates = [];
+    }
   }
 
   async addIceCandidate(candidate: string) {
@@ -339,13 +366,17 @@ export class WebRTCService {
       return;
     }
     
+    // If no remote description, store candidate for later
     if (!this.peerConnection.remoteDescription) {
-      console.log('⚠️ Remote description not set yet, waiting...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      if (!this.peerConnection.remoteDescription) {
-        console.log('⚠️ Still no remote description, ignoring ICE candidate');
-        return;
+      console.log('📦 Storing candidate for later...');
+      try {
+        const candidateObj = JSON.parse(candidate);
+        this.pendingCandidates.push(new RTCIceCandidate(candidateObj));
+        console.log(`📦 Stored candidate (total: ${this.pendingCandidates.length})`);
+      } catch (error) {
+        console.error('❌ Error parsing candidate:', error);
       }
+      return;
     }
     
     try {
@@ -410,6 +441,7 @@ export class WebRTCService {
     this.remoteSdp = '';
     this.remoteStream = null;
     this.isProcessingOffer = false;
+    this.pendingCandidates = [];
   }
 
   private cleanup() {
@@ -419,6 +451,5 @@ export class WebRTCService {
       this.localStream = null;
     }
     this.RoomId = '';
-    this.isCaller = false;
   }
 }
