@@ -35,6 +35,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     try {
       await this.signalR.startConnection();
       this.connectionStatus = 'Connected';
+       this.webrtc.init();
       this.setupSignalREvents();
       
       // Subscribe to WebRTC events

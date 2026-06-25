@@ -51,8 +51,12 @@ export class WebRTCService {
   };
 
   constructor(private signalR: SignalRService) {
-    this.setupSignalREvents();
+    
   }
+  public init() {
+  // Only set up events after SignalR is connected
+  this.setupSignalREvents();
+}
 
   // ─────────────────────────────────────────────────────────────
   // SETUP SIGNALR EVENTS
