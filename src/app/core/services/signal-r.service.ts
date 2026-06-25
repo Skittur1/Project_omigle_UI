@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core';
-import { Subject, BehaviorSubject } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 
 @Injectable({
@@ -8,26 +7,34 @@ import * as signalR from '@microsoft/signalr';
 export class SignalRService {
   private hubConnection!: signalR.HubConnection;
   private connectionUrl = 'http://138.252.100.148:8126/hub/v1';
-  private keepAliveInterval: any;
+  private keepAliveInterval: any = null;
 
-  async startConnection() {
-    if (this.hubConnection && this.hubConnection.state !== signalR.HubConnectionState.Disconnected) {
+  async startConnection(): Promise<void> {
+    if (
+      this.hubConnection &&
+      this.hubConnection.state !== signalR.HubConnectionState.Disconnected
+    ) {
       return;
-    } 
-    
+    }
+
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(this.connectionUrl)
-      .withAutomaticReconnect()
+      .withAutomaticReconnect([0, 2000, 5000, 10000])
       .configureLogging(signalR.LogLevel.Information)
       .build();
 
-    this.hubConnection.onclose(() => {
-      console.log('Disconnected from SignalR hub');
+    this.hubConnection.onclose((error) => {
+      console.log('Disconnected from SignalR hub', error);
       this.stopKeepAlive();
     });
 
-    this.hubConnection.onreconnected(() => {
-      console.log('Reconnected to SignalR hub');
+    this.hubConnection.onreconnecting((error) => {
+      console.log('SignalR reconnecting...', error);
+      this.stopKeepAlive();
+    });
+
+    this.hubConnection.onreconnected((connectionId) => {
+      console.log('Reconnected to SignalR hub', connectionId);
       this.startKeepAlive();
     });
 
@@ -36,15 +43,20 @@ export class SignalRService {
     this.startKeepAlive();
   }
 
-  // ✅ Add keep-alive to prevent server timeout
   private startKeepAlive() {
     this.stopKeepAlive();
-    this.keepAliveInterval = setInterval(() => {
-      if (this.isConnected()) {
-        // Send a ping to keep connection alive
-        this.invoke('Ping').catch(() => {});
+
+    this.keepAliveInterval = setInterval(async () => {
+      try {
+        if (this.isConnected()) {
+          // If your hub has Ping method, keep this.
+          // If not, comment this out.
+          await this.invokeWithoutParams('Ping');
+        }
+      } catch (error) {
+        // silent fail
       }
-    }, 15000); // Send every 15 seconds
+    }, 15000);
   }
 
   private stopKeepAlive() {
@@ -54,17 +66,20 @@ export class SignalRService {
     }
   }
 
-  ConnectionOn(MethodName: string, callback: any) {
+  ConnectionOn(methodName: string, callback: (...args: any[]) => void) {
     if (!this.hubConnection) {
-      console.warn('Hub connection not initialized');
+      console.warn(`Hub connection not initialized for event: ${methodName}`);
       return;
     }
-    this.hubConnection.on(MethodName, callback);
+
+    // Avoid duplicate handlers if component re-inits
+    this.hubConnection.off(methodName);
+    this.hubConnection.on(methodName, callback);
   }
 
-  connectionOff(MethodName: string) {
+  connectionOff(methodName: string) {
     if (this.hubConnection) {
-      this.hubConnection.off(MethodName);
+      this.hubConnection.off(methodName);
     }
   }
 
@@ -72,24 +87,62 @@ export class SignalRService {
     if (!this.hubConnection) {
       throw new Error('Hub connection not initialized');
     }
+
+    if (!this.isConnected()) {
+      throw new Error(`Cannot invoke ${methodName}. SignalR is not connected.`);
+    }
+
     return await this.hubConnection.invoke<T>(methodName);
   }
 
-  async invoke<T>(methodName: string, roomid?: any, sdp?: any): Promise<T> {
+  async invoke<T>(methodName: string, roomId?: any, payload?: any): Promise<T> {
     if (!this.hubConnection) {
       throw new Error('Hub connection not initialized');
     }
-    return await this.hubConnection.invoke<T>(methodName, roomid, sdp);
+
+    if (!this.isConnected()) {
+      throw new Error(`Cannot invoke ${methodName}. SignalR is not connected.`);
+    }
+
+    if (payload !== undefined) {
+      return await this.hubConnection.invoke<T>(methodName, roomId, payload);
+    }
+
+    if (roomId !== undefined) {
+      return await this.hubConnection.invoke<T>(methodName, roomId);
+    }
+
+    return await this.hubConnection.invoke<T>(methodName);
   }
 
   isConnected(): boolean {
     return this.hubConnection?.state === signalR.HubConnectionState.Connected;
   }
 
+  async waitUntilConnected(maxAttempts = 10, delayMs = 500): Promise<boolean> {
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      if (this.isConnected()) {
+        return true;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      attempts++;
+    }
+
+    return false;
+  }
+
   async disconnect() {
     this.stopKeepAlive();
+
     if (this.hubConnection) {
-      await this.hubConnection.stop();
+      try {
+        await this.hubConnection.stop();
+      } catch (error) {
+        console.error('Error while stopping SignalR connection:', error);
+      }
     }
   }
 }
